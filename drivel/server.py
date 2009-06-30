@@ -7,10 +7,6 @@ from eventlet import coros
 from eventlet import pool
 from eventlet import wsgi
 
-from .components.connection import XMPPSupervisor
-from .components.db import ConnectionPool as DBPool
-from .components.history import History
-from .components.memcached import ClientPool as MemcachePool
 from .wsgi import create_application
 
 class Server(object):
@@ -29,6 +25,11 @@ class Server(object):
         for name, mod in self.config.items('components'):
             self.components[name] = api.named(mod)(self)
         self._greenlet = api.spawn(self._process)
+        app = create_application(self)
+        host = self.config.get('http', 'address')
+        port = self.config.getint('http', 'port')
+        sock = api.tcp_listener((host, port))
+        wsgi.server(sock, app)
 
     def stop(self):
         for name, mod in self.components.items():
@@ -51,7 +52,6 @@ class Server(object):
                 self.log('Server', 'warning', "couldn't find "
                     "subscribers for %s: %s" % (subscription, message))
                 #event.send_exception()
-
     def send(self, subscription, *message):
         self.log('Server', 'debug', 'receiving message for %s'
             ': %s' % (subscription, message))
@@ -81,15 +81,6 @@ def start(config, options):
     util.wrap_pipes_with_coroutine_pipes()
     server = Server(config)
     server.start()
-    MemcachePool(server)
-    DBPool(server)
-    XMPPSupervisor(server)
-    History(server)
-    app = create_application(server)
-    host = config.get('http', 'address')
-    port = config.getint('http', 'port')
-    sock = api.tcp_listener((host, port))
-    wsgi.server(sock, app)
 
 def main():
     from ConfigParser import RawConfigParser

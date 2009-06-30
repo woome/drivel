@@ -53,7 +53,7 @@ class ConnectionPool(Component):
         conn = self._pool.get()
         cursor = conn.cursor()
         cursor.execute(query, params)
-        result = [row for row in cursor]
+        result = list(cursor)
         self._pool.put(conn)
         event.send(result)
         

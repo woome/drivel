@@ -36,3 +36,6 @@ class Component(object):
     def _handle_message(self, event, message):
         raise NotImplementedError()
 
+    def stop(self):
+        self._greenlet.throw()
+

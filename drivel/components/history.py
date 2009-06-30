@@ -49,7 +49,7 @@ class History(Component):
     def stats(self):
         stats = super(History, self).stats()
         stats.update({
-            'waitingonnotification': sum(map(len, self.waiters.values()),
+            'waitingonnotification': sum(map(len, self.waiters.values())),
         })
         return stats
 

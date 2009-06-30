@@ -46,3 +46,10 @@ class History(Component):
                     waiter = self.waiters[user.username].popleft()
                     waiter.send()
 
+    def stats(self):
+        stats = super(History, self).stats()
+        stats.update({
+            'waitingonnotification': sum(map(len, self.waiters.values()),
+        })
+        return stats
+

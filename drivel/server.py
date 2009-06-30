@@ -53,6 +53,7 @@ class Server(object):
                 self.log('Server', 'warning', "couldn't find "
                     "subscribers for %s: %s" % (subscription, message))
                 #event.send_exception()
+
     def send(self, subscription, *message):
         self.log('Server', 'debug', 'receiving message for %s'
             ': %s' % (subscription, message))
@@ -73,6 +74,16 @@ class Server(object):
         level = getattr(logging,
             self.config.get('server', 'log_level').upper())
         logging.basicConfig(level=level, stream=sys.stdout)
+
+    def stats(self):
+        stats = dict((key, comp.stats()) for key, comp
+            in self.components.items())
+        stats.update({
+            'server': {
+                'items': len(self._mqueue),
+            }
+        })
+        return stats
 
 
 def start(config, options):

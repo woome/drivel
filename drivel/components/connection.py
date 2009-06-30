@@ -31,6 +31,13 @@ class XMPPSupervisor(Component):
                 self.server, user)
         self.active_users[user.username].send((event, method, tosend))
 
+    def stats(self):
+        stats = super(XMPPSupervisor, self).stats()
+        stats.update({
+            'xmppconnections:running': len(self.active_users),
+        })
+        return stats
+
 
 class XMPPConnection(object):
     def __init__(self, server, user):

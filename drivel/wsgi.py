@@ -1,4 +1,5 @@
 from eventlet import api
+from lxml import etree
 from webob import Request
 
 class TimeoutException(Exception):
@@ -14,7 +15,10 @@ def create_application(server):
         user = authbackend(request)
         tosend = []
         if request.method == 'POST':
-            pass
+            # need error handling here
+            tree = etree.fromstring(request.body)
+            if tree.tag == 'body':
+                tosend = map(etree.tostring, tree.getchildren())
         server.send('xmppc', 'send', user, tosend)
         since = (request.GET.getone('since') 
             if 'since' in request.GET else None) # can raise exception
@@ -34,6 +38,7 @@ def create_application(server):
         for t, msg in msgs:
             response.append(msg)
             maxtime = max(maxtime, t)
-        return ['<body upto="%s">' % maxtime, "".join(map(str, response)), '</body>']
+        return ['<body upto="%s">' % maxtime, "".join(map(str, response)),
+            '</body>']
     return application
 

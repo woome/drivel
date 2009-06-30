@@ -22,6 +22,7 @@ class Server(object):
         self._setupLogging()
 
     def start(self):
+        self.log('Server', 'info', 'starting server')
         for name, mod in self.config.items('components'):
             self.components[name] = api.named(mod)(self)
         self._greenlet = api.spawn(self._process)

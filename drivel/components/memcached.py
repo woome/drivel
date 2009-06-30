@@ -34,3 +34,11 @@ class ClientPool(Component):
         self._pool.put(client)
         event.send(ret)
 
+    def stats(self):
+        stats = super(ClientPool, self).stats()
+        stats.update({
+            'memcacheclients:free': self._pool.free(),
+            'memcacheclients:waiting': self._pool.waiting(),
+        })
+        return stats
+

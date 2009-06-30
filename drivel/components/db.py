@@ -56,5 +56,13 @@ class ConnectionPool(Component):
         result = list(cursor)
         self._pool.put(conn)
         event.send(result)
+
+    def stats(self):
+        stats = super(ClientPool, self).stats()
+        stats.update({
+            'dbconnections:free': self._pool.free(),
+            'dbconnections:waiting': self._pool.waiting(),
+        })
+        return stats
         
 

@@ -51,7 +51,7 @@ class Component(object):
                 'running': self._coropool.current_size,
                 'balance': self._coropool.sem.balance,
             })
-        if self._procset:
+        elif self._procset:
             stats.update({
                 'running': len(self._procset),
             })

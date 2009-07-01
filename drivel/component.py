@@ -44,23 +44,20 @@ class Component(object):
         self._greenlet.throw()
 
     def stats(self):
+        stats = {}
         if self._coropool:
-            return {
+            stats.update({
                 'free': self._coropool.free(),
                 'running': self._coropool.current_size,
                 'balance': self._coropool.sem.balance,
-                'items': len(self._mqueue),
-                'alive': bool(self._greenlet),
-            }
+            })
         if self._procset:
-            return {
+            stats.update({
                 'running': len(self._procset),
-                'items': len(self._mqueue),
-                'alive': bool(self._greenlet),
-            }
-        else:
-            return {
-                'items': len(self._mqueue),
-                'alive': bool(self._greenlet),
-            }
+            })
+        stats.update({
+            'items': len(self._mqueue),
+            'alive': bool(self._greenlet),
+        })
+        return stats
 

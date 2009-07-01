@@ -4,6 +4,7 @@ import logging
 import sys
 
 from eventlet import api
+from eventlet import backdoor
 from eventlet import coros
 from eventlet import pool
 from eventlet import wsgi
@@ -27,6 +28,13 @@ class Server(object):
         for name, mod in self.config.items('components'):
             self.components[name] = api.named(mod)(self)
         self._greenlet = api.spawn(self._process)
+        if self.config.has_option('server', 'backdoor_port'):
+            # enable backdoor console
+            bdport = self.config.getint('server', 'backdoor_port')
+            self.log('Server', 'info', 'enabling backdoor on port %s'
+                % bdport)
+            api.spawn(api.tcp_server, api.tcp_listener(('127.0.0.1', bdport)),
+                backdoor.backdoor, locals={'server': self})
         app = create_application(self)
         numsimulreq = (self.config.get('http', 'max_simultaneous_reqs') 
             if self.config.has_option('http', 'max_simultaneous_reqs')

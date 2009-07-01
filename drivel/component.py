@@ -42,6 +42,10 @@ class Component(object):
 
     def stop(self):
         self._greenlet.throw()
+        if self._coropool:
+            self._coropool.killall()
+        elif self._procset:
+            self._procset.killall()
 
     def stats(self):
         stats = {}

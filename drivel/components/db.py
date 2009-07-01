@@ -58,7 +58,7 @@ class ConnectionPool(Component):
         event.send(result)
 
     def stats(self):
-        stats = super(ClientPool, self).stats()
+        stats = super(ConnectionPool, self).stats()
         stats.update({
             'dbconnections:free': self._pool.free(),
             'dbconnections:waiting': self._pool.waiting(),

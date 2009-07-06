@@ -96,11 +96,12 @@ class XMPPConnection(object):
         jid = xmpp.protocol.JID('%s@%s' % (username, domain))
         cl = xmpp.Client(jid.getDomain(), debug=[])
         secure = False
+        condetails = (host or jid.getDomain(), port or 5222)
         assert cl.connect(
-            (host or jid.getDomain(), port or 5222), 
+            condetails,
             secure=None if secure else 0
-        )
-        assert cl.auth(jid.getNode(), password)
+        ), "could not connect to %s:%s" % condetails 
+        assert cl.auth(jid.getNode(), password), "could not authenticate"
         self.client = cl
         self.server.log('XMPPConnection[%s]' % self.user.username,
             'debug', '...connected')

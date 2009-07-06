@@ -12,9 +12,12 @@ def create_application(server):
     # the actual wsgi app
     def application(environ, start_response):
         request = Request(environ)
+        if request.method not in ['GET', 'POST']:
+            start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
+            return ''
         user = authbackend(request)
         tosend = []
-        if request.method == 'POST':
+        if request.method == 'POST' and request.body:
             # need error handling here
             tree = etree.fromstring(request.body)
             if tree.tag == 'body':

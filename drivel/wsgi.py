@@ -1,6 +1,11 @@
+from functools import partial
+import sys
+# third-party imports
 from eventlet import api
 from lxml import etree
 from webob import Request
+# local imports
+from auth import UnauthenticatedUser
 
 class TimeoutException(Exception):
     pass
@@ -9,6 +14,32 @@ def create_application(server):
     authbackend = server.config.get('http', 'auth_backend')
     authbackend = api.named(authbackend)(server)
     tsecs = server.config.getint('http', 'maxwait')
+    log = partial(server.log, 'WSGI')
+    # error handling
+    def error_middleware(app):
+        def application(environ, start_response):
+            try:
+                return app(environ, start_response)
+            except UnauthenticatedUser, e:
+                log('debug', 'request cannot be authenticated')
+                start_response('403 Forbidden', [
+                        ('Content-type', 'text/html'),
+                    ], exc_info=sys.exc_info())
+                return ['Could not be authenticated']
+            except etree.XMLSyntaxError, e:
+                log('debug', 'received malformed body from client')
+                start_response('400 Bad Request', [
+                        ('Content-type', 'text/html'),
+                    ], exc_info=sys.exc_info())
+                return ['Could not parse POST body']
+            except Exception, e:
+                log('error', 'an unexpected exception was raised')
+                start_response('500 Internal Server Error', [
+                        ('Content-type', 'text/html'),
+                    ], exc_info=sys.exc_info())
+                return ['Server encountered an unhandled exception']
+        return application
+
     # the actual wsgi app
     def application(environ, start_response):
         request = Request(environ)
@@ -41,7 +72,8 @@ def create_application(server):
         for t, msg in msgs:
             response.append(msg)
             maxtime = max(maxtime, t)
-        return ['<body upto="%s">' % maxtime, "".join(map(str, response)),
-            '</body>']
-    return application
+        return [''.join(['<body upto="%s">' % maxtime,
+            "".join(map(str, response)),
+            '</body>'])]
+    return error_middleware(application)
 

@@ -1,8 +1,5 @@
-class User(object):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password = password
+from ..auth import User
+from ..auth import UnauthenticatedUser
 
 def MemcacheAuthBackend(server):
     session_cookie = server.config.get('http', 'session_cookie')
@@ -16,6 +13,8 @@ def MemcacheAuthBackend(server):
             return cachehit
         rows = server.send('db', 'SELECT username, password FROM auth_user '
             'WHERE id = %s', [userid]).wait()
+        if not rows:
+            raise UnauthenticatedUser()
         user = User(userid, *rows[0])
         server.send('memcache', 'set', cachekey, user)
         return user

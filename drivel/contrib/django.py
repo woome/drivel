@@ -1,5 +1,5 @@
-from ..auth import User
-from ..auth import UnauthenticatedUser
+from drivel.auth import User
+from drivel.auth import UnauthenticatedUser
 
 def MemcacheAuthBackend(server):
     session_cookie = server.config.get('http', 'session_cookie')

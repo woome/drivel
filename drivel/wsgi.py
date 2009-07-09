@@ -1,5 +1,6 @@
 from functools import partial
 import sys
+import traceback
 # third-party imports
 from eventlet import api
 from lxml import etree
@@ -34,6 +35,7 @@ def create_application(server):
                 return ['Could not parse POST body']
             except Exception, e:
                 log('error', 'an unexpected exception was raised')
+                log('error', traceback.format_exc())
                 start_response('500 Internal Server Error', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
@@ -47,6 +49,7 @@ def create_application(server):
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
             return ''
         user = authbackend(request)
+        log('debug', 'handling %s for user %s' % (request.method, user.username))
         tosend = []
         if request.method == 'POST' and request.body:
             # need error handling here
@@ -54,7 +57,7 @@ def create_application(server):
             if tree.tag == 'body':
                 tosend = map(etree.tostring, tree.getchildren())
         server.send('xmppc', 'send', user, tosend)
-        since = (request.GET.getone('since') 
+        since = (float(request.GET.getone('since'))
             if 'since' in request.GET else None) # can raise exception
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
@@ -66,6 +69,7 @@ def create_application(server):
         else:
             timeout.cancel()
         # do response
+        log('debug', 'sending response')
         start_response('200 OK', [('Content-type', 'text/xml')])
         response = []
         maxtime = since or 0

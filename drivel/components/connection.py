@@ -2,8 +2,8 @@ from eventlet import api
 from eventlet import coros
 import xmpp
 
-from ..component import Component
-#from .green import xmpp
+from drivel.component import Component
+#from drivel.green import xmpp
 
 def plain_credentials(server):
     """basic credential func"""

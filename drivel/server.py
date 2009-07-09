@@ -9,7 +9,7 @@ from eventlet import coros
 from eventlet import pool
 from eventlet import wsgi
 
-from .wsgi import create_application
+from drivel.wsgi import create_application
 
 class Server(object):
     def __init__(self, config):

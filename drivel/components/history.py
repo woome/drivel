@@ -4,7 +4,7 @@ import time
 
 from eventlet import coros
 
-from ..component import Component
+from drivel.component import Component
 
 class History(Component):
     subscription = 'history'
@@ -14,9 +14,13 @@ class History(Component):
         self.waiters = defaultdict(deque)
 
     def get(self, user, since=None):
+        self.log('debug', 'looking for messages for user %s since %s' % (
+            user.username, since))
         if user.username in self.history and len(self.history[user.username]):
             msgs = [msg for msg in self.history[user.username]
                 if since is None or msg[0] > since]
+            self.log('debug', 'found %d messages for user %s since %s' % (
+                len(msgs), user.username, since))
             return msgs
         return None
 

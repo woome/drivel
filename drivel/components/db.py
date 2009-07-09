@@ -3,8 +3,8 @@ from ConfigParser import NoOptionError
 from pg8000 import DBAPI
 from eventlet import pools
 
-from ..component import Component
-#from .green.pg8000 import DBAPI
+from drivel.component import Component
+#from drivel.green.pg8000 import DBAPI
 
 class _PgPool(pools.Pool):
     def __init__(self, pool_size, *args, **kwargs):

@@ -15,6 +15,9 @@ class TimeoutException(Exception):
 class InvalidSession(Exception):
     pass
 
+class ConnectionReplaced(Exception):
+    pass
+
 def create_application(server):
     authbackend = server.config.get('http', 'auth_backend')
     authbackend = api.named(authbackend)(server)
@@ -59,12 +62,19 @@ def create_application(server):
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
             return ''
         user = authbackend(request)
-        path = os.path.split(request.path.strip('/'))
-        if path and path[0] == 'session':
+        path = request.path.strip('/').split('/')
+        if path[1:2] and path[1] == 'session':
             try:
-                sessionid = int(path[1])
-            except (ValueError, IndexError), e:
+                sessionid = path[2]
+                assert len(sessionid) == 32
+                assert long(sessionid, 16)
+                log('debug', 'request had existing session: %s' % sessionid)
+                server.send('session', 'register', sessionid, api.getcurrent())
+            except (ValueError, IndexError, AssertionError), e:
                 raise InvalidSession()
+        else:
+            sessionid = server.send('session', 'create', api.getcurrent()).wait()
+            log('debug', 'created new session for request: %s' % sessionid)
         log('debug', 'handling %s for user %s' % (request.method, user.username))
         tosend = []
         if request.method == 'POST' and request.body:
@@ -79,8 +89,10 @@ def create_application(server):
             timeout = api.exc_after(tsecs, TimeoutException())
             msgs = server.send('history', 'get', user, since).wait()
         except TimeoutException, e:
-            server.log('wsgi.application', 'debug',
-                'timeout reached for user %s' % user.username)
+            log('debug', 'timeout reached for user %s' % user)
+            msgs = []
+        except ConnectionReplaced, e:
+            log('debug', 'connection replaced for user %s' % user)
             msgs = []
         else:
             timeout.cancel()
@@ -92,7 +104,8 @@ def create_application(server):
         for t, msg in msgs:
             response.append(msg)
             maxtime = max(maxtime, t)
-        opentag = '<body upto="%s" jid="%s">' % (repr(maxtime), jid)
+        opentag = '<body upto="%s" jid="%s" session="%s">' % (repr(maxtime),
+            jid, sessionid)
         log('debug', 'sending response -- bodytag: %s' % opentag)
         return [''.join([opentag,
             "".join(map(str, response)),

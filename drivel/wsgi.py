@@ -1,4 +1,5 @@
 from functools import partial
+import os
 import sys
 import traceback
 # third-party imports
@@ -9,6 +10,9 @@ from webob import Request
 from auth import UnauthenticatedUser
 
 class TimeoutException(Exception):
+    pass
+
+class InvalidSession(Exception):
     pass
 
 def create_application(server):
@@ -33,6 +37,12 @@ def create_application(server):
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['Could not parse POST body']
+            except InvalidSession, e:
+                log('debug', 'received unparsable or invalid session')
+                start_response('404 Not Found', [
+                        ('Content-type', 'text/html'),
+                    ], exc_info=sys.exc_info())
+                return ['Invalid session url']
             except Exception, e:
                 log('error', 'an unexpected exception was raised')
                 log('error', traceback.format_exc())
@@ -49,6 +59,12 @@ def create_application(server):
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
             return ''
         user = authbackend(request)
+        path = os.path.split(request.path.strip('/'))
+        if path and path[0] == 'session':
+            try:
+                sessionid = int(path[1])
+            except (ValueError, IndexError), e:
+                raise InvalidSession()
         log('debug', 'handling %s for user %s' % (request.method, user.username))
         tosend = []
         if request.method == 'POST' and request.body:

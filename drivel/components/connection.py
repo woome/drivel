@@ -29,7 +29,9 @@ class XMPPSupervisor(Component):
                 in self.active_users)))
             self.active_users[user.username] = XMPPConnection(
                 self.server, user)
-        self.active_users[user.username].send((event, method, tosend))
+        _event = coros.event()
+        self.active_users[user.username].send((_event, method, tosend))
+        event.send(self.active_users[user.username].jid)
 
     def stats(self):
         stats = super(XMPPSupervisor, self).stats()
@@ -49,8 +51,14 @@ class XMPPConnection(object):
         )(server)
         self._connected = coros.event()
         self._mqueue = coros.queue()
-        api.spawn(self._connect)
-        api.spawn(self._run)
+        self._g_connect = api.spawn(self._connect)
+        self._g_run = api.spawn(self._run)
+
+    @property
+    def jid(self):
+        self._connected.wait()
+        c = self.client
+        return "%s@%s/%s" % (c.User, c.Server, c.Resource)
 
     def _postconnection(self):
         self.client.RegisterHandler('default', self._default_handler)

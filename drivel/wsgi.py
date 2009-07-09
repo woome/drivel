@@ -56,7 +56,7 @@ def create_application(server):
             tree = etree.fromstring(request.body)
             if tree.tag == 'body':
                 tosend = map(etree.tostring, tree.getchildren())
-        server.send('xmppc', 'send', user, tosend)
+        jid = server.send('xmppc', 'send', user, tosend).wait()
         since = (float(request.GET.getone('since'))
             if 'since' in request.GET else None) # can raise exception
         try:
@@ -69,14 +69,16 @@ def create_application(server):
         else:
             timeout.cancel()
         # do response
-        log('debug', 'sending response')
+        log('debug', 'got messages %s' % msgs)
         start_response('200 OK', [('Content-type', 'text/xml')])
         response = []
         maxtime = since or 0
         for t, msg in msgs:
             response.append(msg)
             maxtime = max(maxtime, t)
-        return [''.join(['<body upto="%s">' % maxtime,
+        opentag = '<body upto="%s" jid="%s">' % (repr(maxtime), jid)
+        log('debug', 'sending response -- bodytag: %s' % opentag)
+        return [''.join([opentag,
             "".join(map(str, response)),
             '</body>'])]
     return error_middleware(application)

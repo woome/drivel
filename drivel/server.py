@@ -7,8 +7,8 @@ from eventlet import api
 from eventlet import backdoor
 from eventlet import coros
 from eventlet import pool
-from eventlet import wsgi
 
+from drivel.utils import wsgi
 from drivel.wsgi import create_application
 
 class Server(object):

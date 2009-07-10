@@ -4,6 +4,7 @@ import sys
 import traceback
 # third-party imports
 from eventlet import api
+from eventlet.proc import Proc
 from lxml import etree
 from webob import Request
 # local imports
@@ -53,6 +54,19 @@ def create_application(server):
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['Server encountered an unhandled exception']
+        return application
+
+    # coroutine stuff
+    def linkablecoroutine_middleware(app):
+        def application(environ, start_response):
+            """run application in an coroutine that we can link and pass
+            to application via wsgi environ so that it can use it.
+            
+            """
+            proc = Proc()
+            environ['drivel.wsgi_proc'] = proc
+            proc.run(app, environ, start_response)
+            return proc.wait()
         return application
 
     # the actual wsgi app
@@ -110,5 +124,5 @@ def create_application(server):
         return [''.join([opentag,
             "".join(map(str, response)),
             '</body>'])]
-    return error_middleware(application)
+    return linkablecoroutine_middleware(error_middleware(application))
 

@@ -24,6 +24,7 @@ class ConnectionClosed(Exception):
     pass
 
 def create_application(server):
+    from components.session import SessionConflict # circular import
     authbackend = server.config.get('http', 'auth_backend')
     authbackend = api.named(authbackend)(server)
     tsecs = server.config.getint('http', 'maxwait')
@@ -51,6 +52,12 @@ def create_application(server):
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['Invalid session url']
+            except SessionConflict, e:
+                log('debug', 'received session id owned by another user')
+                start_response('403 Forbidden', [
+                        ('Content-type', 'text/html'),
+                    ], exc_info=sys.exc_info())
+                return ['Invalid session url for user']
             except Exception, e:
                 log('error', 'an unexpected exception was raised')
                 log('error', traceback.format_exc())
@@ -73,7 +80,7 @@ def create_application(server):
             return proc.wait()
         return application
 
-    def watchconnection(environ):
+    def watchconnection(sock, proc):
         """listen for EOF on socket."""
         def watcher(sock, proc):
             try:
@@ -87,17 +94,18 @@ def create_application(server):
                     proc.kill(ConnectionClosed())
             except LinkedExited, e:
                 pass
-        proc = environ['drivel.wsgi_proc']
-        sock = environ['wsgi.input'].rfile
         g = api.spawn(watcher, sock, proc)
         #proc.link(g)
 
     # the actual wsgi app
     def application(environ, start_response):
+        # webob can change this, so get it now!
+        rfile = environ['wsgi.input'].rfile
         request = Request(environ)
+        proc = environ['drivel.wsgi_proc']
         if request.method not in ['GET', 'POST']:
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
-            return ''
+            return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
         if path[1:2] and path[1] == 'session':
@@ -106,11 +114,11 @@ def create_application(server):
                 assert len(sessionid) == 32
                 assert long(sessionid, 16)
                 log('debug', 'request had existing session: %s' % sessionid)
-                server.send('session', 'register', sessionid, api.getcurrent())
+                server.send('session', 'register', user, sessionid, proc)
             except (ValueError, IndexError, AssertionError), e:
                 raise InvalidSession()
         else:
-            sessionid = server.send('session', 'create', api.getcurrent()).wait()
+            sessionid = server.send('session', 'create', user, proc).wait()
             log('debug', 'created new session for request: %s' % sessionid)
         log('debug', 'handling %s for user %s' % (request.method, user.username))
         tosend = []
@@ -124,7 +132,7 @@ def create_application(server):
             if 'since' in request.GET else None) # can raise exception
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
-            watchconnection(environ)
+            watchconnection(rfile, proc)
             msgs = server.send('history', 'get', user, since).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)

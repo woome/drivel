@@ -10,14 +10,6 @@ client termination of the connection.
 
 """
 from eventlet.wsgi import *
-EventletHttpProtocol = HttpProtocol
-
-class HttpProtocol(EventletHttpProtocol):
-    def get_environ(self):
-        env = EventletHttpProtocol.get_environ(self)
-        env['drivel.socket'] = self.request
-        return env
-
 
 def server(sock, site, log=None, environ=None, max_size=None, max_http_version=DEFAULT_MAX_HTTP_VERSION, protocol=HttpProtocol, server_event=None, minimum_chunk_size=None):
     serv = Server(sock, sock.getsockname(), site, log, environ=None, max_http_version=max_http_version, protocol=protocol, minimum_chunk_size=minimum_chunk_size)

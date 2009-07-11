@@ -4,6 +4,7 @@ import sys
 import traceback
 # third-party imports
 from eventlet import api
+from eventlet.proc import LinkedExited
 from eventlet.proc import Proc
 from lxml import etree
 from webob import Request
@@ -17,6 +18,9 @@ class InvalidSession(Exception):
     pass
 
 class ConnectionReplaced(Exception):
+    pass
+
+class ConnectionClosed(Exception):
     pass
 
 def create_application(server):
@@ -69,6 +73,25 @@ def create_application(server):
             return proc.wait()
         return application
 
+    def watchconnection(environ):
+        """listen for EOF on socket."""
+        def watcher(sock, proc):
+            try:
+                log('debug', 'watching connection %s for termination'
+                    ' at client end' % sock.fileno())
+                api.select([sock],[],[])
+                d = sock.read()
+                if not d and bool(proc):
+                    log('debug', 'terminating wsgi proc using closed sock %s' %
+                        sock.fileno())
+                    proc.kill(ConnectionClosed())
+            except LinkedExited, e:
+                pass
+        proc = environ['drivel.wsgi_proc']
+        sock = environ['wsgi.input'].rfile
+        g = api.spawn(watcher, sock, proc)
+        #proc.link(g)
+
     # the actual wsgi app
     def application(environ, start_response):
         request = Request(environ)
@@ -101,6 +124,7 @@ def create_application(server):
             if 'since' in request.GET else None) # can raise exception
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
+            watchconnection(environ)
             msgs = server.send('history', 'get', user, since).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)
@@ -108,7 +132,10 @@ def create_application(server):
         except ConnectionReplaced, e:
             log('debug', 'connection replaced for user %s' % user)
             msgs = []
-        else:
+        except ConnectionClosed, e:
+            log('debug', 'connection closed for user %s' % user)
+            msgs = []
+        finally:
             timeout.cancel()
         # do response
         log('debug', 'got messages %s' % msgs)
@@ -124,5 +151,8 @@ def create_application(server):
         return [''.join([opentag,
             "".join(map(str, response)),
             '</body>'])]
-    return linkablecoroutine_middleware(error_middleware(application))
+
+    app = error_middleware(application)
+    app = linkablecoroutine_middleware(app)
+    return app
 

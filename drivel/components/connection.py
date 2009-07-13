@@ -1,5 +1,8 @@
+import time
+
 from eventlet import api
 from eventlet import coros
+from eventlet import proc
 import xmpp
 
 from drivel.component import Component
@@ -29,6 +32,10 @@ class XMPPSupervisor(Component):
                 in self.active_users)))
             self.active_users[user.username] = XMPPConnection(
                 self.server, user)
+            def remove(*args, **kwargs):
+                self.log('debug', 'removing connection for %s' % user)
+                del self.active_users[user.username]
+            self.active_users[user.username].link(remove)
         _event = coros.event()
         self.active_users[user.username].send((_event, method, tosend))
         event.send(self.active_users[user.username].jid)
@@ -51,8 +58,18 @@ class XMPPConnection(object):
         )(server)
         self._connected = coros.event()
         self._mqueue = coros.queue()
-        self._g_connect = api.spawn(self._connect)
-        self._g_run = api.spawn(self._run)
+        # Proc.spawn has the side-effect of not descheduling current coro which is what we
+        # want here. (see assignment of instance into dict above)
+        self._g_connect = proc.Proc.spawn(self._connect)
+        self._g_run = proc.Proc.spawn(self._run)
+        self._g_connect.link(self._g_run)
+        self._last_activity = None
+        self._inactivity_disconnect = server.config.getint('xmpp',
+            'inactivity_disconnect')
+        self._disconnect = False
+
+    def link(self, to):
+        self._g_run.link(to)
 
     @property
     def jid(self):
@@ -61,6 +78,7 @@ class XMPPConnection(object):
         return "%s@%s/%s" % (c.User, c.Server, c.Resource)
 
     def _postconnection(self):
+        self.client.RegisterDisconnectHandler(self._disconnect_handler)
         self.client.RegisterHandler('default', self._default_handler)
         self.client.sendInitPresence()
         self._connected.send(True)
@@ -68,21 +86,45 @@ class XMPPConnection(object):
 
     def _process(self):
         while True:
-            self.client.Process(1)
+            self.client.Process(60)
 
     def _run(self):
         self._connected.wait()
         while True:
             event, method, message = self._mqueue.wait()
             if method == 'send':
+                self._last_activity = time.time()
                 if message:
                     if isinstance(message, (tuple, list)):
                         message = ''.join(message)
                     self.client.send(message)
-            event.send()
+                event.send()
+            elif method == 'disconnect':
+                # check last activity
+                if time.time() - self._last_activity > \
+                        self._inactivity_disconnect:
+                    self._disconnect = True
+                    self.client.disconnect()
+                    event.send(True)
+                else:
+                    # warning, there's been activity, abort
+                    event.send(False)
+            else:
+                event.throw(Exception('Unknown XMPP Method'))
 
     def send(self, message):
         self._mqueue.send(message)
+
+    def _disconnect_handler(self, *args, **kwargs):
+        if self._disconnect:
+            # this seems to get fired twice for some reason
+            self.server.log('XMPPConnection[%s]' % self.user.username,
+                'debug', 'connection disconnected sucessfully')
+            self._g_connect.kill()
+            self._g_run.kill()
+        else:
+            self.server.log('XMPPConnection[%s]' % self.user.username,
+                'warning', 'connection disconnected unexpetedly')
 
     def _default_handler(self, session, stanza):
         self.server.log('XMPPConnection[%s]' % self.user.username,

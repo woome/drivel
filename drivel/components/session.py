@@ -24,6 +24,8 @@ class SessionManager(Component):
         self.session_users = {}
         # timers for user inactivity
         self.user_timers = {}
+        self._inactivity_disconnect = self.config.getint('xmpp',
+            'inactivity_disconnect')
 
     def create(self):
         return uuid.uuid4().hex
@@ -38,11 +40,12 @@ class SessionManager(Component):
         self.log('debug', 'inactivity timer fired for %s' % user)
         del self.user_timers[user]
         # send message to xmppc to disconnect
+        self.server.send('xmppc', 'disconnect', user, None).wait()
 
     def set_inactivity_timer(self, user):
         self.log('debug', 'setting inactivity timer for %s' % user)
         self.cancel_inactivity_timer(user)
-        self.user_timers[user] = api.call_after(60*3,
+        self.user_timers[user] = api.call_after(self._inactivity_disconnect,
             self._inactivity_alarm, user)
 
     def remove_connection(self, sessid, conn):

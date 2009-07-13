@@ -17,7 +17,7 @@ class Component(object):
         self._greenlet = api.spawn(self._process)
         self._coropool = None
         self._procset = None
-        if self.message_pool_size:
+        if self.message_pool_size and self.asynchronous:
             self._coropool = pool.Pool(max_size=self.message_pool_size)
             self._execute = self._coropool.execute_async
         elif self.asynchronous:
@@ -25,7 +25,8 @@ class Component(object):
             self._procset = proc.RunningProcSet()
             self._execute = self._procset.spawn
         else:
-            self._execute = lambda func, *args: func(*args)
+            self._coropool = pool.Pool(max_size=1)
+            self._execute = lambda func, *args: self._coropool.execute(func, *args).wait()
         self.log = partial(self.server.log, self.__class__.__name__)
             
     @property

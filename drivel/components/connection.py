@@ -26,19 +26,17 @@ class XMPPSupervisor(Component):
 
     def _handle_message(self, event, message):
         method, user, tosend = message
-        if user.username not in self.active_users:
-            self.log('debug', 'user %s not found in existing- %s'
-                % (user.username, ', '.join(i for i
-                in self.active_users)))
-            self.active_users[user.username] = XMPPConnection(
+        if user not in self.active_users:
+            self.log('debug', 'user %s not found in existing connections' % user)
+            self.active_users[user] = XMPPConnection(
                 self.server, user)
             def remove(*args, **kwargs):
                 self.log('debug', 'removing connection for %s' % user)
-                del self.active_users[user.username]
-            self.active_users[user.username].link(remove)
+                del self.active_users[user]
+            self.active_users[user].link(remove)
         _event = coros.event()
-        self.active_users[user.username].send((_event, method, tosend))
-        event.send(self.active_users[user.username].jid)
+        self.active_users[user].send((_event, method, tosend))
+        event.send(self.active_users[user].jid)
 
     def stats(self):
         stats = super(XMPPSupervisor, self).stats()

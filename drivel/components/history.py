@@ -16,8 +16,8 @@ class History(Component):
     def get(self, user, since=None):
         self.log('debug', 'looking for messages for user %s since %s' % (
             user.username, since))
-        if user.username in self.history and len(self.history[user.username]):
-            msgs = [msg for msg in self.history[user.username]
+        if user in self.history and len(self.history[user]):
+            msgs = [msg for msg in self.history[user]
                 if since is None or msg[0] > since]
             self.log('debug', 'found %d messages for user %s since %s' % (
                 len(msgs), user.username, since))
@@ -33,21 +33,20 @@ class History(Component):
                 self.log('debug', 'waiting for incoming messages '
                     'for user %s' % user.username)
                 evt = coros.event()
-                self.waiters[user.username].append(evt)
+                self.waiters[user].append(evt)
                 evt.wait()
                 self.log('debug', 'received notification of messages '
                     'for user %s' % user.username)
                 msgs = self.get(user, data)
             event.send(msgs)
         elif method == 'set':
-            self.history[user.username].append((time.time(), data))
+            self.history[user].append((time.time(), data))
             event.send()
-            if user.username in self.waiters and len(
-                self.waiters[user.username]):
+            if user in self.waiters and len(self.waiters[user]):
                 self.log('debug', 'waking up waiters for user %s'
                     % user.username)
-                while len(self.waiters[user.username]):
-                    waiter = self.waiters[user.username].popleft()
+                while len(self.waiters[user]):
+                    waiter = self.waiters[user].popleft()
                     waiter.send()
 
     def stats(self):

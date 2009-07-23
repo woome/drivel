@@ -85,7 +85,7 @@ def create_application(server):
     def watchconnection(sock, proc):
         """listen for EOF on socket."""
         def watcher(sock, proc):
-            fileno = "(%s)%s" % (sock.fileno(), sock.getpeername())
+            fileno = "%s" % (sock.fileno(),)
             try:
                 log('debug', 'watching connection %s for termination'
                     ' at client end' % fileno)

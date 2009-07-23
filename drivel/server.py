@@ -99,6 +99,8 @@ class Server(object):
 
 
 def start(config, options):
+    if config.has_option('server', 'hub_module'):
+        api.use_hub(api.named(config.get('server', 'hub_module')))
     from eventlet import util
     util.wrap_socket_with_coroutine_socket()
     util.wrap_select_with_coroutine_select()

@@ -40,7 +40,7 @@ class History(Component):
                 msgs = self.get(user, data)
             event.send(msgs)
         elif method == 'set':
-            self.history[user].append((time.time(), data))
+            self.history[user].append((time.time() * 1000, data))
             event.send()
             if user in self.waiters and len(self.waiters[user]):
                 self.log('debug', 'waking up waiters for user %s'

@@ -85,22 +85,23 @@ def create_application(server):
     def watchconnection(sock, proc):
         """listen for EOF on socket."""
         def watcher(sock, proc):
+            fileno = "(%s)%s" % (sock.fileno(), sock.getpeername())
             try:
                 log('debug', 'watching connection %s for termination'
-                    ' at client end' % sock.fileno())
+                    ' at client end' % fileno)
                 api.trampoline(sock, read=True)
                 d = sock.read()
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
-                        sock.fileno())
+                        fileno)
                     proc.kill(ConnectionClosed())
             except socket.error, e:
                 if e[0] == errno.EPIPE:
-                    log('debug', 'got broken pipe on sock %s. terminating.' % sock.fileno())
+                    log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
                     proc.kill(ConnectionClosed())
             except IOError, e:
                 if e.errno == errno.EPIPE:
-                    log('debug', 'got broken pipe on sock %s. terminating.' % sock.fileno())
+                    log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
                     proc.kill(ConnectionClosed())
             except LinkedExited, e:
                 pass

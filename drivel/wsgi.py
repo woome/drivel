@@ -99,10 +99,14 @@ def create_application(server):
                 if e[0] == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
                     proc.kill(ConnectionClosed())
+                else:
+                    log('debug', 'got error %s for sock %' % (e, fileno))
             except IOError, e:
                 if e.errno == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
                     proc.kill(ConnectionClosed())
+                else:
+                    log('debug', 'got error %s for sock %' % (e, fileno))
             except LinkedExited, e:
                 pass
         g = api.spawn(watcher, sock, proc)

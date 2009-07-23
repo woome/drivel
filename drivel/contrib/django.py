@@ -1,11 +1,44 @@
+import base64
+import cPickle as pickle
+from datetime import datetime
+from hashlib import md5
+
 from drivel.auth import User
 from drivel.auth import UnauthenticatedUser
 
+def decode(session_data, secret_key):
+    """Decode django session serialisation from db.
+
+    Taken from django.contrib.session.backends.base.SessionBase
+
+    """
+    encoded_data = base64.decodestring(session_data)
+    pickled, tamper_check = encoded_data[:-32], encoded_data[-32:]
+    if md5(pickled + settings.SECRET_KEY).hexdigest() != tamper_check:
+        raise UnauthenticatedUser() # was SuspiciousOperation
+    try:
+        return pickle.loads(pickled)
+    # Unpickling can cause a variety of exceptions. If something happens,
+    # just return an empty dictionary (an empty session).
+    except:
+        return {}
+
+
 def MemcacheAuthBackend(server):
     session_cookie = server.config.get('http', 'session_cookie')
+    secret_key = server.config.get('django', 'secret_key') # change section to django
     def doauth(request):
         sessionid = request.cookies.get(session_cookie)
         session = server.send('memcache', 'get', sessionid).wait()
+        if not session:
+            # hack to do db read-through. need a better way to configure this behaviour
+            rows = server.send('db', "SELECT session_data FROM django_session"
+                " WHERE session_key = %s AND expire_date > %s",
+                [sessionid, datetime.now()]).wait()
+            if rows:
+                session = decode(rows[0][0], secret_key)
+        if not session or '_auth_user_id' not in session:
+            raise UnauthenticatedUser()
         userid = session.get('_auth_user_id')
         cachekey = 'user_object_for_id_%s' % userid
         cachehit = server.send('memcache', 'get', cachekey).wait()

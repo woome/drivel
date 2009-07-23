@@ -1,3 +1,4 @@
+import errno
 from functools import partial
 import os
 import sys
@@ -91,6 +92,14 @@ def create_application(server):
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
                         sock.fileno())
+                    proc.kill(ConnectionClosed())
+            except socket.error, e:
+                if e[0] == errno.EPIPE:
+                    log('debug', 'got broken pipe on sock %s. terminating.' % sock.fileno())
+                    proc.kill(ConnectionClosed())
+            except IOError, e:
+                if e.errno == errno.EPIPE:
+                    log('debug', 'got broken pipe on sock %s. terminating.' % sock.fileno())
                     proc.kill(ConnectionClosed())
             except LinkedExited, e:
                 pass

@@ -86,7 +86,7 @@ def create_application(server):
             try:
                 log('debug', 'watching connection %s for termination'
                     ' at client end' % sock.fileno())
-                api.trampoline([sock],[],[])
+                api.trampoline(sock, read=True)
                 d = sock.read()
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %

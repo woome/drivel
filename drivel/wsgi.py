@@ -106,6 +106,12 @@ def create_application(server):
         if request.method not in ['GET', 'POST']:
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
             return ['']
+        elif request.path == '/ping':
+            start_response('200 OK', [('Content-type', 'text/plain')])
+            return ['pong']
+        elif request.path == '/favicon.ico':
+            start_response('404 Not Found', [])
+            return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
         if path[1:2] and path[1] == 'session':

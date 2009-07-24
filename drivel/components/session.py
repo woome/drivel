@@ -27,6 +27,14 @@ class SessionManager(Component):
         self._inactivity_disconnect = self.config.getint('xmpp',
             'inactivity_disconnect')
 
+    def stats(self):
+        stats = super(SessionManager, self).stats()
+        stats.update({
+            'sessions:activesessions': len(self.sessions),
+            'sessions:connectedusers': len(self.user_sessions),
+        })
+        return stats
+
     def create(self):
         return uuid.uuid4().hex
 

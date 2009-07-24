@@ -33,6 +33,7 @@ class XMPPSupervisor(Component):
             def remove(*args, **kwargs):
                 self.log('debug', 'removing connection for %s' % user)
                 del self.active_users[user]
+                self.server.send('session', 'disconnected', user)
             self.active_users[user].link(remove)
         _event = coros.event()
         self.active_users[user].send((_event, method, tosend))
@@ -123,6 +124,8 @@ class XMPPConnection(object):
         else:
             self.server.log('XMPPConnection[%s]' % self.user.username,
                 'warning', 'connection disconnected unexpetedly')
+            self._g_connect.kill()
+            self._g_run.kill()
 
     def _default_handler(self, session, stanza):
         self.server.log('XMPPConnection[%s]' % self.user.username,

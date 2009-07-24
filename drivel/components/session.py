@@ -65,6 +65,13 @@ class SessionManager(Component):
                 del self.user_sessions[user]
                 self.set_inactivity_timer(user)
 
+    def disconnected_user(self, user):
+        sessions = self.user_sessions.get(user, [])
+        for session in sessions:
+            for conn in self.sessions[session]:
+                # need a new exception
+                conn.kill(ConnectionReplaced())
+
     def add_connection(self, sessid, user, conn):
         self.log('debug', 'adding conn into sessions %s for user %s' %
             (sessid, user))
@@ -91,7 +98,11 @@ class SessionManager(Component):
             user, proc = message[1:]
             self.add_connection(sessid, user, proc)
             event.send(sessid)
-        if message[0] == 'register':
+        elif message[0] == 'register':
             user, sessid, proc = message[1:]
             self.add_connection(sessid, user, proc)
+        elif message[0] == 'disconnected':
+            user = message[1]
+            self.disconnected_user(user)
+
 

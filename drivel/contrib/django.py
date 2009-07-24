@@ -14,7 +14,7 @@ def decode(session_data, secret_key):
     """
     encoded_data = base64.decodestring(session_data)
     pickled, tamper_check = encoded_data[:-32], encoded_data[-32:]
-    if md5(pickled + settings.SECRET_KEY).hexdigest() != tamper_check:
+    if md5(pickled + secret_key).hexdigest() != tamper_check:
         raise UnauthenticatedUser() # was SuspiciousOperation
     try:
         return pickle.loads(pickled)

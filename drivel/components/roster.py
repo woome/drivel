@@ -86,6 +86,10 @@ class RosterManager(Component):
             self._numpresences += 1
         elif method == 'conn-termination':
             user = message[1]
+            try:
+                del self.accounts[user]
+            except KeyError, e:
+                pass
         event.send()
 
     def stats(self):

@@ -78,7 +78,10 @@ class XMPPConnection(object):
 
     def _postconnection(self):
         self.client.RegisterDisconnectHandler(self._disconnect_handler)
-        self.client.RegisterHandler('default', self._default_handler)
+        self.client.RegisterHandler('default', self._default_handler,
+            system=True)
+        self.client.RegisterHandler('presence', self._default_handler,
+            system=True)
         self.client.sendInitPresence()
         self._connected.send(True)
         self._process()
@@ -126,11 +129,15 @@ class XMPPConnection(object):
                 'warning', 'connection disconnected unexpetedly')
             self._g_connect.kill()
             self._g_run.kill()
+        self.server.send('roster', 'conn-termination', self.user.username)
 
     def _default_handler(self, session, stanza):
         self.server.log('XMPPConnection[%s]' % self.user.username,
             'debug', 'received stanza: %s' % stanza)
         self.server.send('history', 'set', self.user, stanza)
+    
+    def _presence_handler(self, session, stanza):
+        self.server.send('roster', 'presence', str(stanza))
 
     def _connect(self):
         self.server.log('XMPPConnection[%s]' % self.user.username,

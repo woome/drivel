@@ -52,7 +52,7 @@ class RosterManager(Component):
                 if not contact['resources']:
                     contact['status'] = ptype
         else if not ptype:
-            show = presence.show || 'available'
+            show = presence.show or 'available'
             extension = presence.extension
             date = datetime.now()
             contact['resources'][resource] = (show, extension, date)

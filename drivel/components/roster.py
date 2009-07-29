@@ -26,7 +26,7 @@ class Presence(object):
         _pnode = xmpp.simplexml.XML2Node(xml)
         _presence = xmpp.protocol.Presence(node=_pnode)
         for key, func in presencemapping.iteritems():
-            setattr(self, key, func(_presence)
+            setattr(self, key, func(_presence))
 
 
 class RosterManager(Component):
@@ -51,7 +51,7 @@ class RosterManager(Component):
                     pass
                 if not contact['resources']:
                     contact['status'] = ptype
-        else if not ptype:
+        elif not ptype:
             show = presence.show or 'available'
             extension = presence.extension
             date = datetime.now()
@@ -74,7 +74,7 @@ class RosterManager(Component):
         })
         try:
             self._presence_logic(contact, presence)
-            self.server.send('memcache', 'set', 'buddylist:%s' % user, None)
+            self.server.send('memcache', 'set', 'buddylist:%s' % user, roster)
         except UnhandleablePresence, e:
             pass
 
@@ -88,6 +88,7 @@ class RosterManager(Component):
             user = message[1]
             try:
                 del self.accounts[user]
+                self.server.send('memcache', 'del', 'buddylist:%s' % user.username)
             except KeyError, e:
                 pass
         event.send()

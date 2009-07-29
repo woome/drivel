@@ -85,10 +85,10 @@ class RosterManager(Component):
             self.handle_presence(presence)
             self._numpresences += 1
         elif method == 'conn-termination':
-            user = message[1]
+            user = message[1].username
             try:
                 del self.accounts[user]
-                self.server.send('memcache', 'del', 'buddylist:%s' % user.username)
+                self.server.send('memcache', 'del', 'buddylist:%s' % user)
             except KeyError, e:
                 pass
         event.send()

@@ -1,16 +1,10 @@
 from unittest import TestCase
 
-from eventlet import coros
 from mock import Mock
 
 from drivel.auth import User
 from drivel.components.roster import RosterManager
-
-def send(queue, *message):
-    # synchronous message send
-    event = coros.event()
-    queue.send((event, message))
-    event.wait()
+from .utils import send
 
 
 class RosterTestCase(TestCase):

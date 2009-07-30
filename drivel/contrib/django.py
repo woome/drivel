@@ -25,8 +25,8 @@ def decode(session_data, secret_key):
 
 
 def MemcacheAuthBackend(server):
-    session_cookie = server.config.get('http', 'session_cookie')
-    secret_key = server.config.get('django', 'secret_key') # change section to django
+    session_cookie = server.config.http.session_cookie
+    secret_key = server.config.django.secret_key # change section to django
     def doauth(request):
         sessionid = request.cookies.get(session_cookie)
         session = server.send('memcache', 'get', sessionid).wait()

@@ -8,6 +8,7 @@ from eventlet import backdoor
 from eventlet import coros
 from eventlet import pool
 
+from drivel.config import fromfile as config_fromfile
 from drivel.utils import wsgi
 from drivel.wsgi import create_application
 
@@ -25,23 +26,21 @@ class Server(object):
 
     def start(self, start_listeners=True):
         self.log('Server', 'info', 'starting server')
-        for name, mod in self.config.items('components'):
-            self.components[name] = api.named(mod)(self)
+        for name in self.config.components:
+            self.components[name] = self.config.components.import_(name)
         self._greenlet = api.spawn(self._process)
-        if start_listeners and self.config.has_option('server', 'backdoor_port'):
+        if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
-            bdport = self.config.getint('server', 'backdoor_port')
+            bdport = self.config.getint(('server', 'backdoor_port'))
             self.log('Server', 'info', 'enabling backdoor on port %s'
                 % bdport)
             api.spawn(api.tcp_server, api.tcp_listener(('127.0.0.1', bdport)),
                 backdoor.backdoor, locals={'server': self})
         app = create_application(self)
         if start_listeners:
-            numsimulreq = (self.config.get('http', 'max_simultaneous_reqs') 
-                if self.config.has_option('http', 'max_simultaneous_reqs')
-                else None)
-            host = self.config.get('http', 'address')
-            port = self.config.getint('http', 'port')
+            numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))
+            host = self.config.http.address
+            port = self.config.http.getint('port')
             sock = api.tcp_listener((host, port))
             wsgi.server(sock, app)
 
@@ -85,7 +84,7 @@ class Server(object):
 
     def _setupLogging(self):
         level = getattr(logging,
-            self.config.get('server', 'log_level').upper())
+            self.config.server.log_level.upper())
         logging.basicConfig(level=level, stream=sys.stdout)
 
     def stats(self):
@@ -100,8 +99,8 @@ class Server(object):
 
 
 def start(config, options):
-    if config.has_option('server', 'hub_module'):
-        api.use_hub(api.named(config.get('server', 'hub_module')))
+    if 'hub_module' in config.server:
+        api.use_hub(config.server.import_('hub_module'))
     from eventlet import util
     util.wrap_socket_with_coroutine_socket()
     util.wrap_select_with_coroutine_select()
@@ -110,7 +109,6 @@ def start(config, options):
     server.start()
 
 def main():
-    from ConfigParser import RawConfigParser
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option('-c', '--config', dest='config',
@@ -118,10 +116,8 @@ def main():
     options, args = parser.parse_args()
     if not options.config:
         parser.error('please specify a config file')
-    config = RawConfigParser()
-    with open(options.config) as f:
-        config.readfp(f)
-    start(config, options)
+    conf = config_fromfile(options.config)
+    start(conf, options)
 
 if __name__ == '__main__':
     main()

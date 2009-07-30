@@ -24,8 +24,8 @@ class SessionManager(Component):
         self.session_users = {}
         # timers for user inactivity
         self.user_timers = {}
-        self._inactivity_disconnect = self.config.getint('xmpp',
-            'inactivity_disconnect')
+        self._inactivity_disconnect = self.config.getint(('xmpp',
+            'inactivity_disconnect'))
 
     def stats(self):
         stats = super(SessionManager, self).stats()

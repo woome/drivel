@@ -27,9 +27,8 @@ class ConnectionClosed(Exception):
 
 def create_application(server):
     from components.session import SessionConflict # circular import
-    authbackend = server.config.get('http', 'auth_backend')
-    authbackend = api.named(authbackend)(server)
-    tsecs = server.config.getint('http', 'maxwait')
+    authbackend = server.config.http.import_('auth_backend')(server)
+    tsecs = server.config.http.getint('maxwait')
     log = partial(server.log, 'WSGI')
     # error handling
     def error_middleware(app):

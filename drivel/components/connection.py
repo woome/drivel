@@ -52,9 +52,7 @@ class XMPPConnection(object):
         self.server = server
         self.user = user
         self.client = None
-        self._get_credentials = api.named(
-            server.config.get('xmpp', 'credential_func')
-        )(server)
+        self._get_credentials = server.config.xmpp.import_('credential_func')(server)
         self._connected = coros.event()
         self._mqueue = coros.queue()
         # Proc.spawn has the side-effect of not descheduling current coro which is what we
@@ -63,7 +61,7 @@ class XMPPConnection(object):
         self._g_run = proc.Proc.spawn(self._run)
         self._g_connect.link(self._g_run)
         self._last_activity = None
-        self._inactivity_disconnect = server.config.getint('xmpp',
+        self._inactivity_disconnect = server.config.xmpp.getint(
             'inactivity_disconnect')
         self._disconnect = False
 
@@ -142,13 +140,9 @@ class XMPPConnection(object):
     def _connect(self):
         self.server.log('XMPPConnection[%s]' % self.user.username,
             'info', 'connecting...')
-        domain = self.server.config.get('xmpp', 'domain')
-        host = (self.server.config.has_section('xmpp') and
-            self.server.config.has_option('xmpp', 'host') and
-            self.server.config.get('xmpp', 'host'))
-        port = (self.server.config.has_section('xmpp') and
-            self.server.config.has_option('xmpp', 'port') and
-            self.server.config.get('xmpp', 'port'))
+        domain = self.server.config.xmpp.domain
+        host = self.server.config.xmpp.get('host')
+        port = self.server.config.xmpp.get('port')
         
         username, password = self._get_credentials(self.user)
         jid = xmpp.protocol.JID('%s@%s' % (username, domain))

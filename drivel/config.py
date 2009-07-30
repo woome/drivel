@@ -4,12 +4,19 @@ import ConfigParser
 from eventlet import api
 
 class Config(dict):
+    """Better Config Container.
+
+    subclass of dict.
+    takes a RawConfigParser instance to constructor too.
+
+    """
     def __init__(self, config):
         if isinstance(config, ConfigParser.RawConfigParser):
             for section in config.sections():
                 self[section] = Config(dict(config.items(section)))
         else:
-            super(Config, self).__init__(config)
+            for key, val in config.iteritems():
+                self[key] = Config(val) if isinstance(val, dict) else val
             
     def import_(self, key):
         return api.named(self[key])

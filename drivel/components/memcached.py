@@ -21,9 +21,9 @@ class ClientPool(Component):
 
     def __init__(self, server):
         super(ClientPool, self).__init__(server)
-        poolsize = server.config.getint('memcache', 'pool_size')
+        poolsize = server.config.memcache.getint('pool_size')
         servers = [value for name, value
-            in server.config.items('memcache-servers')]
+            in server.config['memcache-servers'].items()]
         self._pool = _MemcachePool(poolsize, servers)
 
     def _handle_message(self, event, message):

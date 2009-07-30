@@ -34,7 +34,7 @@ def _getconf(server):
         else:
             method = ''
         try:
-            yield key, getattr(server.config, 'get%s' % method)('postgres', key)
+            yield key, getattr(server.postgres.config, 'get%s' % method)(key)
         except NoOptionError, e:
             pass
 
@@ -45,7 +45,7 @@ class ConnectionPool(Component):
     def __init__(self, server):
         super(ConnectionPool, self).__init__(server)
         dbconf = dict(_getconf(server))
-        poolsize = server.config.getint('postgres', 'pool_size')
+        poolsize = server.config.postgres.getint('pool_size')
         self._pool = _PgPool(poolsize, **dbconf)
 
     def _handle_message(self, event, message):

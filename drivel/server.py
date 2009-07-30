@@ -23,12 +23,12 @@ class Server(object):
         #self._pool = pool.Pool(max_size=concurrency)
         self._setupLogging()
 
-    def start(self):
+    def start(self, start_listeners=True):
         self.log('Server', 'info', 'starting server')
         for name, mod in self.config.items('components'):
             self.components[name] = api.named(mod)(self)
         self._greenlet = api.spawn(self._process)
-        if self.config.has_option('server', 'backdoor_port'):
+        if start_listeners and self.config.has_option('server', 'backdoor_port'):
             # enable backdoor console
             bdport = self.config.getint('server', 'backdoor_port')
             self.log('Server', 'info', 'enabling backdoor on port %s'
@@ -36,13 +36,14 @@ class Server(object):
             api.spawn(api.tcp_server, api.tcp_listener(('127.0.0.1', bdport)),
                 backdoor.backdoor, locals={'server': self})
         app = create_application(self)
-        numsimulreq = (self.config.get('http', 'max_simultaneous_reqs') 
-            if self.config.has_option('http', 'max_simultaneous_reqs')
-            else None)
-        host = self.config.get('http', 'address')
-        port = self.config.getint('http', 'port')
-        sock = api.tcp_listener((host, port))
-        wsgi.server(sock, app)
+        if start_listeners:
+            numsimulreq = (self.config.get('http', 'max_simultaneous_reqs') 
+                if self.config.has_option('http', 'max_simultaneous_reqs')
+                else None)
+            host = self.config.get('http', 'address')
+            port = self.config.getint('http', 'port')
+            sock = api.tcp_listener((host, port))
+            wsgi.server(sock, app)
 
     def stop(self):
         for name, mod in self.components.items():

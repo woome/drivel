@@ -14,6 +14,15 @@ class Config(dict):
     def import_(self, key):
         return api.named(self[key])
 
+    def get(self, key, default=None):
+        if isinstance(key, tuple):
+            try:
+                return self[key]
+            except KeyError, e:
+                return default
+        else:
+            return super(Config, self).get(key, default)
+
     def getint(self, key, default=None):
         return int(self.get(key, default))
 
@@ -37,6 +46,26 @@ class Config(dict):
             return self[key]
         except KeyError, e:
             return self.__getattribute__(key)
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            val = self
+            for k in key:
+                val = val[k]
+            return val
+        else:
+            return dict.__getitem__(self, key)
+
+    def __contains__(self, key):
+        if isinstance(key, tuple):
+            val = self
+            for k in key:
+                if k not in val:
+                    return False
+                val = val[k]
+            return True
+        else:
+            return dict.__contains__(self, key)
 
 
 def fromfile(file):

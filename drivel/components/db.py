@@ -1,5 +1,3 @@
-from ConfigParser import NoOptionError
-
 from pg8000 import DBAPI
 from eventlet import pools
 
@@ -34,8 +32,8 @@ def _getconf(server):
         else:
             method = ''
         try:
-            yield key, getattr(server.postgres.config, 'get%s' % method)(key)
-        except NoOptionError, e:
+            yield key, getattr(server.config.postgres, 'get%s' % method)(key)
+        except (KeyError, TypeError), e:
             pass
 
 

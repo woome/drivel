@@ -30,15 +30,21 @@ class Config(dict):
         else:
             return super(Config, self).get(key, default)
 
-    def getint(self, key, default=None):
-        return int(self.get(key, default))
-
-    def getfloat(self, key, default=None):
-        return float(self.get(key, default))
-
-    def getboolean(self, key, default=None):
+    def getint(self, key, default=None, return_none=False):
         val = self.get(key, default)
-        if not val:
+        if val is None and return_none:
+            return val
+        return int(val)
+
+    def getfloat(self, key, default=None, return_none=False):
+        val = self.get(key, default)
+        if val is None and return_none:
+            return val
+        return float(val)
+
+    def getboolean(self, key, default=None, return_none=True):
+        val = self.get(key, default)
+        if val is None and return_none:
             return None
         val = val.lower()
         if val in ['1', 'yes', 'true', 'on']:

@@ -114,7 +114,7 @@ def create_application(server):
     # the actual wsgi app
     def application(environ, start_response):
         # webob can change this, so get it now!
-        rfile = environ['wsgi.input'].rfile
+        rfile = getattr(environ['wsgi.input'], 'rfile', None)
         request = Request(environ)
         proc = environ['drivel.wsgi_proc']
         if request.method not in ['GET', 'POST']:
@@ -152,7 +152,8 @@ def create_application(server):
             if 'since' in request.GET else None) # can raise exception
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
-            watchconnection(rfile, proc)
+            if rfile:
+                watchconnection(rfile, proc)
             msgs = server.send('history', 'get', user, since).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)

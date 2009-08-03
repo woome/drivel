@@ -27,7 +27,7 @@ class Server(object):
     def start(self, start_listeners=True):
         self.log('Server', 'info', 'starting server')
         for name in self.config.components:
-            self.components[name] = self.config.components.import_(name)
+            self.components[name] = self.config.components.import_(name)(self)
         self._greenlet = api.spawn(self._process)
         if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
@@ -37,6 +37,7 @@ class Server(object):
             api.spawn(api.tcp_server, api.tcp_listener(('127.0.0.1', bdport)),
                 backdoor.backdoor, locals={'server': self})
         app = create_application(self)
+        self.wsgiapp = app
         if start_listeners:
             numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))
             host = self.config.http.address

@@ -11,6 +11,9 @@ class User(object):
         return self.username == other.username and \
             self.id == other.id
 
+    def __ne__(self, other):
+        return not self == other
+
     def __str__(self):
         return self.username
 

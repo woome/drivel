@@ -84,8 +84,10 @@ class SessionManager(Component):
         self.log('debug', 'adding conn into sessions %s for user %s' %
             (sessid, user))
         if sessid in self.session_users:
-            if self.session_users[sessid] != user:
-                raise SessionConflict()
+            sess_user = self.session_users[sessid]
+            if sess_user != user:
+                raise SessionConflict("%s did not match owner of session %s"
+                    ": %s" % (user, sessid, sess_user))
         else:
             self.session_users[sessid] = user
         self.user_sessions[user].add(sessid)

@@ -64,6 +64,7 @@ class XMPPConnection(object):
         self._inactivity_disconnect = server.config.xmpp.getint(
             'inactivity_disconnect')
         self._disconnect = False
+        self._semaphore = coros.semaphore(1)
 
     def link(self, to):
         self._g_run.link(to)
@@ -86,31 +87,46 @@ class XMPPConnection(object):
 
     def _process(self):
         while True:
-            self.client.Process(60)
+            ret = api.trampoline(self.client.Connection._sock, read=True)
+            if ret:
+                self._handle_message(ret)
+                api.call_after_global(0, self._g_run.greenlet.switch)
+            else:
+                # this semaphore stops the message queue greenlet from
+                # switching into us whilst we're trying to read data
+                self._semaphore.acquire()
+                self.client.Process(1)
+                self._semaphore.release()
+
+    def _handle_message(self, message):
+        event, method, message = message
+        if method == 'send':
+            self._last_activity = time.time()
+            if message:
+                if isinstance(message, (tuple, list)):
+                    message = ''.join(message)
+                self.client.send(message)
+            event.send()
+        elif method == 'disconnect':
+            # check last activity
+            if time.time() - self._last_activity > \
+                    self._inactivity_disconnect:
+                self._disconnect = True
+                self.client.disconnect()
+                event.send(True)
+            else:
+                # warning, there's been activity, abort
+                event.send(False)
+        else:
+            event.throw(Exception('Unknown XMPP Method'))
 
     def _run(self):
         self._connected.wait()
         while True:
-            event, method, message = self._mqueue.wait()
-            if method == 'send':
-                self._last_activity = time.time()
-                if message:
-                    if isinstance(message, (tuple, list)):
-                        message = ''.join(message)
-                    self.client.send(message)
-                event.send()
-            elif method == 'disconnect':
-                # check last activity
-                if time.time() - self._last_activity > \
-                        self._inactivity_disconnect:
-                    self._disconnect = True
-                    self.client.disconnect()
-                    event.send(True)
-                else:
-                    # warning, there's been activity, abort
-                    event.send(False)
-            else:
-                event.throw(Exception('Unknown XMPP Method'))
+            message = self._mqueue.wait()
+            self._semaphore.acquire()
+            self._g_connect.greenlet.switch(message)
+            self._semaphore.release()
 
     def send(self, message):
         self._mqueue.send(message)

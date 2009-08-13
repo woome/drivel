@@ -79,7 +79,7 @@ class XMPPConnection(object):
         self.client.RegisterDisconnectHandler(self._disconnect_handler)
         self.client.RegisterHandler('default', self._default_handler,
             system=True)
-        self.client.RegisterHandler('presence', self._default_handler,
+        self.client.RegisterHandler('presence', self._presence_handler,
             system=True)
         self.client.sendInitPresence()
         self._connected.send(True)

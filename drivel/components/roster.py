@@ -74,7 +74,8 @@ class RosterManager(Component):
         })
         try:
             self._presence_logic(contact, presence)
-            self.server.send('memcache', 'set', 'buddylist:%s' % user, roster)
+            key = ('buddylist:%s' % user).encode('ascii')
+            self.server.send('memcache', 'set', key, roster)
         except UnhandleablePresence, e:
             pass
 

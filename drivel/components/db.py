@@ -1,4 +1,8 @@
+import errno
+import socket
+
 from pg8000 import DBAPI
+from pg8000 import errors
 from eventlet import pools
 
 from drivel.component import Component
@@ -57,22 +61,33 @@ class ConnectionPool(Component):
         self._pool = _PgPool(poolsize, **dbconf)
 
     def _handle_message(self, event, message):
+        try:
+            event.send(self._sub_handle_message(event, message))
+        except Exception, e:
+            event.send(exc=e)
+
+    def _sub_handle_message(self, event, message, reconnect=0):
         query, params = message
         conn = self._pool.get()
+        putback = False
         cursor = conn.cursor()
-        conn.begin()
         try:
+            conn.begin()
             cursor.execute(query, params)
             result = list(cursor)
-        except:
-            conn.rollback()
+            return result
+        except errors.ProgrammingError, e:
+            if e.args[0] == 'FATAL':
+                # pg8000 incorrectly reports a disconnect as ProgrammingError
+                # when encountered during begin()
+                conn = self._pool.create()
             raise
-        else:
-            conn.commit()
+        except IOError, e:
+            if e.errno == errno.EPIPE:
+                conn = self._pool.create()
+            raise
         finally:
             self._pool.put(conn)
-        event.send(result)
-            
 
     def stats(self):
         stats = super(ConnectionPool, self).stats()

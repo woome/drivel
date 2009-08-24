@@ -75,12 +75,15 @@ class ConnectionPool(Component):
             conn.begin()
             cursor.execute(query, params)
             result = list(cursor)
+            conn.commit()
             return result
         except errors.ProgrammingError, e:
             if e.args[0] == 'FATAL':
                 # pg8000 incorrectly reports a disconnect as ProgrammingError
                 # when encountered during begin()
                 conn = self._pool.create()
+            else:
+                conn.rollback()
             raise
         except IOError, e:
             if e.errno == errno.EPIPE:

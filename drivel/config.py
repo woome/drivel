@@ -46,11 +46,14 @@ class Config(dict):
         val = self.get(key, default)
         if val is None and return_none:
             return None
-        val = val.lower()
-        if val in ['1', 'yes', 'true', 'on']:
-            return True
-        elif val in ['0', 'no', 'false', 'off']:
-            return False
+        if isinstance(val, basestring):
+            val = val.lower()
+            if val in ['1', 'yes', 'true', 'on']:
+                return True
+            elif val in ['0', 'no', 'false', 'off']:
+                return False
+        elif isinstance(val, bool):
+            return val
         else:
             raise ValueError()
 

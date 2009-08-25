@@ -10,7 +10,7 @@ event.coros.semaphore = Mock(spec=event.coros.semaphore)
 class EventManagerTestCase(TestCase):
     def setUp(self):
         self.publisher = Mock()
-        self.evt = event.EventManager(self.publisher)
+        self.evt = event.EventManager('__fakeid__', self.publisher)
 
     def test_return(self):
         event, id = self.evt.create()

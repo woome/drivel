@@ -5,8 +5,9 @@ import weakref
 from eventlet import coros
 
 class remoteevent(object):
-    def __init__(self, id, publisher, semaphore):
+    def __init__(self, id, procid, publisher, semaphore):
         self.id = id
+        self.procid = procid
         self.publisher = publisher
         self.pubsem = semaphore
 
@@ -18,12 +19,14 @@ class remoteevent(object):
         }
         self.pubsem.acquire()
         self.publisher.send(message,
+            routing_key='%s.%s' % (self.procid, self.id),
             serializer = 'pickle')
         self.pubsem.release()
 
 class EventManager(object):
-    def __init__(self, publisher):
+    def __init__(self, procid, publisher):
         self.events = {}
+        self.procid = procid
         self.publisher = publisher
         self.pubsem = coros.semaphore(1)
 
@@ -40,7 +43,7 @@ class EventManager(object):
         return event, id
 
     def getreturner(self, id):
-        return remoteevent(id, self.publisher, self.pubsem)
+        return remoteevent(id, self.procid, self.publisher, self.pubsem)
 
     def return_(self, id, message):
         if id in self.events:

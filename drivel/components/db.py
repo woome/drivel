@@ -60,13 +60,7 @@ class ConnectionPool(Component):
         poolsize = server.config.postgres.getint('pool_size')
         self._pool = _PgPool(poolsize, **dbconf)
 
-    def _handle_message(self, event, message):
-        try:
-            event.send(self._sub_handle_message(event, message))
-        except Exception, e:
-            event.send(exc=e)
-
-    def _sub_handle_message(self, event, message, reconnect=0):
+    def handle_message(self, message):
         query, params = message
         conn = self._pool.get()
         putback = False

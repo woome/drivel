@@ -79,7 +79,7 @@ class RosterManager(Component):
         except UnhandleablePresence, e:
             pass
 
-    def _handle_message(self, event, message):
+    def handle_message(self, message):
         method = message[0]
         if method == 'presence':
             presence = message[1]
@@ -92,7 +92,6 @@ class RosterManager(Component):
                 self.server.send('memcache', 'del', 'buddylist:%s' % user)
             except KeyError, e:
                 pass
-        event.send()
 
     def stats(self):
         stats = super(RosterManager, self).stats()

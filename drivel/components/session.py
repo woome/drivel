@@ -102,12 +102,12 @@ class SessionManager(Component):
                     'for session %s' % sessid)
                 g.kill(ConnectionReplaced())
 
-    def _handle_message(self, event, message):
+    def handle_message(self, message):
         if message[0] == 'create':
             sessid = self.create()
             user, proc = message[1:]
             self.add_connection(sessid, user, proc)
-            event.send(sessid)
+            return sessid
         elif message[0] == 'register':
             user, sessid, proc = message[1:]
             self.add_connection(sessid, user, proc)

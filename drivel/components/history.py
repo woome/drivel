@@ -24,7 +24,7 @@ class History(Component):
             return msgs
         return None
 
-    def _handle_message(self, event, message):
+    def handle_message(self, message):
         method, user, data = message
         if method == 'get':
             msgs = self.get(user, data)
@@ -38,14 +38,13 @@ class History(Component):
                 self.log('debug', 'received notification of messages '
                     'for user %s' % user.username)
                 msgs = self.get(user, data)
-            event.send(msgs)
+            return msgs
         elif method == 'set':
             history = self.history[user]
             history.append((time.time() * 1000, data))
             threshold = 5 * 60 * 1000 # get this from config var, should be inactivity time
             while history[0] < threshold:
                 history.pop(0)
-            event.send()
             if user in self.waiters and len(self.waiters[user]):
                 self.log('debug', 'waking up waiters for user %s'
                     % user.username)

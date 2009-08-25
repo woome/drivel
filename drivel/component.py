@@ -39,6 +39,13 @@ class Component(object):
             self._execute(self._handle_message, event, message)
         
     def _handle_message(self, event, message):
+        try:
+            res = self.handle_message(message)
+            event.send(res)
+        except Exception, e:
+            event.send(exc=e)
+
+    def handle_message(self, message):
         raise NotImplementedError()
 
     def stop(self):

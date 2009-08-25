@@ -26,13 +26,13 @@ class ClientPool(Component):
             in server.config['memcache-servers'].items()]
         self._pool = _MemcachePool(poolsize, servers)
 
-    def _handle_message(self, event, message):
+    def handle_message(self, message):
         method = message[0]
         args = message[1:]
         client = self._pool.get()
         ret = getattr(client, method)(*args)
         self._pool.put(client)
-        event.send(ret)
+        return ret
 
     def stats(self):
         stats = super(ClientPool, self).stats()

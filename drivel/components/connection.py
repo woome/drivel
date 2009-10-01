@@ -169,7 +169,7 @@ class XMPPConnection(object):
             condetails,
             secure=None if secure else 0
         ), "could not connect to %s:%s" % condetails 
-        assert cl.auth(jid.getNode(), password), "could not authenticate"
+        assert cl.auth(jid.getNode(), password, resource='httpgateway'), "could not authenticate"
         self.client = cl
         self.server.log('XMPPConnection[%s]' % self.user.username,
             'debug', '...connected')

@@ -6,8 +6,8 @@ import sys
 import eventlet
 from eventlet import api
 from eventlet import backdoor
-from eventlet import coros
-from eventlet import pool
+from eventlet import event
+from eventlet import queue
 from eventlet import wsgi
 
 from drivel.config import fromfile as config_fromfile
@@ -17,7 +17,7 @@ class Server(object):
     def __init__(self, config):
         self.config = config
         self.components = {}
-        self._mqueue = coros.queue()
+        self._mqueue = queue.Queue()
         self.subscriptions = defaultdict(list)
         #concurrency = 4
         #if self.config.has_option('server', 'mq_concurrency'):
@@ -73,7 +73,7 @@ class Server(object):
     def send(self, subscription, *message):
         self.log('Server', 'debug', 'receiving message for %s'
             ': %s' % (subscription, message))
-        event = coros.event()
+        event = event.Event()
         self._mqueue.send((event, subscription, message))
         return event
 

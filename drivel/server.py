@@ -3,13 +3,14 @@ from collections import defaultdict
 import logging
 import sys
 
+import eventlet
 from eventlet import api
 from eventlet import backdoor
 from eventlet import coros
 from eventlet import pool
+from eventlet import wsgi
 
 from drivel.config import fromfile as config_fromfile
-from drivel.utils import wsgi
 from drivel.wsgi import create_application
 
 class Server(object):
@@ -34,8 +35,9 @@ class Server(object):
             bdport = self.config.getint(('server', 'backdoor_port'))
             self.log('Server', 'info', 'enabling backdoor on port %s'
                 % bdport)
-            api.spawn(api.tcp_server, api.tcp_listener(('127.0.0.1', bdport)),
-                backdoor.backdoor, locals={'server': self})
+            api.spawn(backdoor.backdoor_server,
+                api.tcp_listener(('127.0.0.1', bdport)),
+                locals={'server': self})
         app = create_application(self)
         self.wsgiapp = app
         if start_listeners:
@@ -43,7 +45,8 @@ class Server(object):
             host = self.config.http.address
             port = self.config.http.getint('port')
             sock = api.tcp_listener((host, port))
-            wsgi.server(sock, app)
+            pool = self.server_pool = eventlet.GreenPool(10000)
+            wsgi.server(sock, app, custom_pool=pool)
 
     def stop(self):
         for name, mod in self.components.items():

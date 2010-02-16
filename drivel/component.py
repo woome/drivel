@@ -1,8 +1,8 @@
 from functools import partial
 from eventlet import api
-from eventlet import coros
 from eventlet import pool
 from eventlet import proc
+from eventlet import queue
 
 class Component(object):
     subscription = None
@@ -11,7 +11,7 @@ class Component(object):
 
     def __init__(self, server):
         self.server = server
-        self._mqueue = coros.queue()
+        self._mqueue = queue.Queue()
         assert self.subscription is not None
         self.server.subscribe(self.subscription, self._mqueue)
         self._greenlet = api.spawn(self._process)

@@ -1,5 +1,5 @@
 from functools import partial
-from eventlet import api
+import eventlet
 from eventlet import pool
 from eventlet import proc
 from eventlet import queue
@@ -14,7 +14,7 @@ class Component(object):
         self._mqueue = queue.Queue()
         assert self.subscription is not None
         self.server.subscribe(self.subscription, self._mqueue)
-        self._greenlet = api.spawn(self._process)
+        self._greenlet = eventlet.spawn_n(self._process)
         self._coropool = None
         self._procset = None
         if self.message_pool_size and self.asynchronous:

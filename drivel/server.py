@@ -7,6 +7,7 @@ import eventlet
 from eventlet import api
 from eventlet import backdoor
 from eventlet import event
+from eventlet import hubs
 from eventlet import queue
 from eventlet import wsgi
 
@@ -29,13 +30,13 @@ class Server(object):
         self.log('Server', 'info', 'starting server')
         for name in self.config.components:
             self.components[name] = self.config.components.import_(name)(self)
-        self._greenlet = api.spawn(self._process)
+        self._greenlet = eventlet.spawn_n(self._process)
         if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
             bdport = self.config.getint(('server', 'backdoor_port'))
             self.log('Server', 'info', 'enabling backdoor on port %s'
                 % bdport)
-            api.spawn(backdoor.backdoor_server,
+            eventlet.spawn_n(backdoor.backdoor_server,
                 api.tcp_listener(('127.0.0.1', bdport)),
                 locals={'server': self})
         app = create_application(self)
@@ -104,7 +105,7 @@ class Server(object):
 
 def start(config, options):
     if 'hub_module' in config.server:
-        api.use_hub(config.server.import_('hub_module'))
+        hubs.use_hub(config.server.import_('hub_module'))
     from eventlet import util
     util.wrap_socket_with_coroutine_socket()
     util.wrap_select_with_coroutine_select()

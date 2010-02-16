@@ -5,6 +5,7 @@ import socket
 import sys
 import traceback
 # third-party imports
+import eventlet
 from eventlet import api
 from eventlet.proc import LinkedExited
 from eventlet.proc import Proc
@@ -108,7 +109,7 @@ def create_application(server):
                     log('debug', 'got error %s for sock %' % (e, fileno))
             except LinkedExited, e:
                 pass
-        g = api.spawn(watcher, sock, proc)
+        g = eventlet.spawn_n(watcher, sock, proc)
         #proc.link(g)
 
     # the actual wsgi app

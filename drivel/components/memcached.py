@@ -1,4 +1,3 @@
-from eventlet import coros
 from eventlet import pools
 import memcache
 from drivel.component import Component

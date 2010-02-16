@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections import deque
 import time
 
-from eventlet import coros
+from eventlet import event
 
 from drivel.component import Component
 
@@ -32,7 +32,7 @@ class History(Component):
                 # wait for incoming
                 self.log('debug', 'waiting for incoming messages '
                     'for user %s' % user.username)
-                evt = coros.event()
+                evt = event.Event()
                 self.waiters[user].append(evt)
                 evt.wait()
                 self.log('debug', 'received notification of messages '

@@ -1,8 +1,10 @@
 import time
 
 from eventlet import api
-from eventlet import coros
+from eventlet import event
 from eventlet import proc
+from eventlet import semaphore
+from eventlet import queue
 import xmpp
 
 from drivel.component import Component
@@ -35,7 +37,7 @@ class XMPPSupervisor(Component):
                 del self.active_users[user]
                 self.server.send('session', 'disconnected', user)
             self.active_users[user].link(remove)
-        _event = coros.event()
+        _event = event.Event()
         self.active_users[user].send((_event, method, tosend))
         return self.active_users[user].jid
 
@@ -53,8 +55,8 @@ class XMPPConnection(object):
         self.user = user
         self.client = None
         self._get_credentials = server.config.xmpp.import_('credential_func')(server)
-        self._connected = coros.event()
-        self._mqueue = coros.queue()
+        self._connected = event.Event()
+        self._mqueue = queue.Queue()
         # Proc.spawn has the side-effect of not descheduling current coro which is what we
         # want here. (see assignment of instance into dict above)
         self._g_connect = proc.Proc.spawn(self._connect)
@@ -64,7 +66,7 @@ class XMPPConnection(object):
         self._inactivity_disconnect = server.config.xmpp.getint(
             'inactivity_disconnect')
         self._disconnect = False
-        self._semaphore = coros.semaphore(1)
+        self._semaphore = semaphore.Semaphore(1)
 
     def link(self, to):
         self._g_run.link(to)

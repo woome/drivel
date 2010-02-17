@@ -35,7 +35,7 @@ class Component(object):
 
     def _process(self):
         while True:
-            event, message = self._mqueue.wait()
+            event, message = self._mqueue.get()
             self._execute(self._handle_message, event, message)
         
     def _handle_message(self, event, message):

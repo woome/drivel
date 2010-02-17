@@ -125,13 +125,13 @@ class XMPPConnection(object):
     def _run(self):
         self._connected.wait()
         while True:
-            message = self._mqueue.wait()
+            message = self._mqueue.get()
             self._semaphore.acquire()
             self._g_connect.greenlet.switch(message)
             self._semaphore.release()
 
     def send(self, message):
-        self._mqueue.send(message)
+        self._mqueue.put(message)
 
     def _disconnect_handler(self, *args, **kwargs):
         if self._disconnect:

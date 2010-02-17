@@ -59,7 +59,7 @@ class Server(object):
     def _process(self):
         """process message queue"""
         while True:
-            event, subscription, message = self._mqueue.wait()
+            event, subscription, message = self._mqueue.get()
             if subscription in self.subscriptions and len(
                 self.subscriptions[subscription]):
                 self.log('Server', 'debug', 'processing message '
@@ -74,9 +74,9 @@ class Server(object):
     def send(self, subscription, *message):
         self.log('Server', 'debug', 'receiving message for %s'
             ': %s' % (subscription, message))
-        event = event.Event()
-        self._mqueue.send((event, subscription, message))
-        return event
+        evt = event.Event()
+        self._mqueue.put((evt, subscription, message))
+        return evt
 
     def subscribe(self, subscription, queue):
         self.log('Server', 'info', 'adding subscription to %s'

@@ -83,7 +83,7 @@ class ChildServer(object):
 
     def _process_outqueue(self):
         while True:
-            to, event, message = self.mqueue.wait()
+            to, event, message = self.mqueue.get()
             try:
                 self._do_send(to, event, message)
             except Exception,e:
@@ -116,7 +116,7 @@ class ChildServer(object):
 
     def send(self, to, *message):
         event, eventid = self.eventmanager.create()
-        self.mqueue.send((to, event, message))
+        self.mqueue.put((to, event, message))
         return event
 
     def _do_send(self, to, event, message):

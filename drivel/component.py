@@ -1,6 +1,5 @@
 from functools import partial
 import eventlet
-from eventlet import pool
 from eventlet import proc
 from eventlet import queue
 
@@ -18,14 +17,14 @@ class Component(object):
         self._coropool = None
         self._procset = None
         if self.message_pool_size and self.asynchronous:
-            self._coropool = pool.Pool(max_size=self.message_pool_size)
+            self._coropool = eventlet.GreenPool(max_size=self.message_pool_size)
             self._execute = self._coropool.execute_async
         elif self.asynchronous:
             #self._execute = api.spawn
             self._procset = proc.RunningProcSet()
             self._execute = self._procset.spawn
         else:
-            self._coropool = pool.Pool(max_size=1)
+            self._coropool = eventlet.GreenPool(max_size=1)
             self._execute = lambda func, *args: self._coropool.execute(func, *args).wait()
         self.log = partial(self.server.log, self.__class__.__name__)
             

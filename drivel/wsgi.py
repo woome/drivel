@@ -76,9 +76,8 @@ def create_application(server):
             to application via wsgi environ so that it can use it.
             
             """
-            proc = Proc()
+            proc = eventlet.spawn(app, environ, start_response)
             environ['drivel.wsgi_proc'] = proc
-            proc.run(app, environ, start_response)
             return proc.wait()
         return application
 

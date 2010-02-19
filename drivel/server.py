@@ -65,7 +65,7 @@ class Server(object):
                 self.log('Server', 'debug', 'processing message '
                     'for %s: %s' % (subscription, message))
                 for subscriber in self.subscriptions[subscription]:
-                    subscriber.send((event, message))
+                    subscriber.put((event, message))
             elif event:
                 self.log('Server', 'warning', "couldn't find "
                     "subscribers for %s: %s" % (subscription, message))

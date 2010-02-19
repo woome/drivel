@@ -8,8 +8,6 @@ import traceback
 import eventlet
 from eventlet import api
 from eventlet import greenthread
-from eventlet.proc import LinkedExited
-from eventlet.proc import Proc
 from lxml import etree
 from webob import Request
 # local imports
@@ -107,8 +105,8 @@ def create_application(server):
                     greenthread.kill(proc, ConnectionClosed())
                 else:
                     log('debug', 'got error %s for sock %' % (e, fileno))
-            except LinkedExited, e:
-                pass
+            #except LinkedExited, e:
+                #pass
         g = eventlet.spawn_n(watcher, sock, proc)
         #proc.link(g)
 

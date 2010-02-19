@@ -7,6 +7,7 @@ import traceback
 # third-party imports
 import eventlet
 from eventlet import api
+from eventlet import greenthread
 from eventlet.proc import LinkedExited
 from eventlet.proc import Proc
 from lxml import etree
@@ -93,17 +94,17 @@ def create_application(server):
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
                         fileno)
-                    proc.kill(ConnectionClosed())
+                    greenthread.kill(proc, ConnectionClosed())
             except socket.error, e:
                 if e[0] == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
-                    proc.kill(ConnectionClosed())
+                    greenthread.kill(proc, ConnectionClosed())
                 else:
                     log('debug', 'got error %s for sock %' % (e, fileno))
             except IOError, e:
                 if e.errno == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
-                    proc.kill(ConnectionClosed())
+                    greenthread.kill(proc, ConnectionClosed())
                 else:
                     log('debug', 'got error %s for sock %' % (e, fileno))
             except LinkedExited, e:

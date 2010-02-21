@@ -21,10 +21,10 @@ class XMPPSupervisor(Component):
     subscription = 'xmppc'
     message_pool_size = 10
 
-    def __init__(self, server):
+    def __init__(self, server, name):
         self.server = server
         self.active_users = {}
-        super(XMPPSupervisor, self).__init__(server)
+        super(XMPPSupervisor, self).__init__(server, name)
 
     def handle_message(self, message):
         method, user, tosend = message

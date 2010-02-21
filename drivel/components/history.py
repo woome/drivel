@@ -8,8 +8,8 @@ from drivel.component import Component
 
 class History(Component):
     subscription = 'history'
-    def __init__(self, server):
-        super(History, self).__init__(server)
+    def __init__(self, server, name):
+        super(History, self).__init__(server, name)
         self.history = defaultdict(list)
         self.waiters = defaultdict(deque)
 

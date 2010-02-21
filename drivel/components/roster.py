@@ -32,8 +32,8 @@ class Presence(object):
 class RosterManager(Component):
     subscription = 'roster'
 
-    def __init__(self, server):
-        super(RosterManager, self).__init__(server)
+    def __init__(self, server, name):
+        super(RosterManager, self).__init__(server, name)
         self.accounts = {}
         self._numpresences = 0
 

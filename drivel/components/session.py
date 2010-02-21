@@ -14,8 +14,8 @@ class SessionConflict(Exception):
 
 class SessionManager(Component):
     subscription = 'session'
-    def __init__(self, server):
-        super(SessionManager, self).__init__(server)
+    def __init__(self, server, name):
+        super(SessionManager, self).__init__(server, name)
         # list of all open connections for a session
         self.sessions = defaultdict(deque)
         # list of all sessions for a user

@@ -1,6 +1,7 @@
 from __future__ import with_statement
 from collections import defaultdict
 import logging
+import re
 import sys
 
 import eventlet
@@ -20,6 +21,7 @@ class Server(object):
         self.components = {}
         self._mqueue = queue.Queue()
         self.subscriptions = defaultdict(list)
+        self.wsgiroutes = []
         #concurrency = 4
         #if self.config.has_option('server', 'mq_concurrency'):
             #concurrency = self.config.getint('server', 'mq_concurrency')
@@ -29,7 +31,7 @@ class Server(object):
     def start(self, start_listeners=True):
         self.log('Server', 'info', 'starting server')
         for name in self.config.components:
-            self.components[name] = self.config.components.import_(name)(self)
+            self.components[name] = self.config.components.import_(name)(self, name)
         self._greenlet = eventlet.spawn_n(self._process)
         if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
@@ -82,6 +84,13 @@ class Server(object):
         self.log('Server', 'info', 'adding subscription to %s'
             % subscription)
         self.subscriptions[subscription].append(queue)
+
+    def add_wsgimapping(self, mapping, subscription):
+        if not isinstance(mapping, (tuple, list)):
+            mapping = (None, mapping)
+
+        mapping = (subscription, mapping[0], re.compile(mapping[1]))
+        self.wsgiroutes.append(mapping)
 
     def log(self, logger, level, message):
         logger = logging.getLogger(logger)

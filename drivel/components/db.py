@@ -54,8 +54,8 @@ def _getconf(server):
 class ConnectionPool(Component):
     subscription = 'db'
 
-    def __init__(self, server):
-        super(ConnectionPool, self).__init__(server)
+    def __init__(self, server, name):
+        super(ConnectionPool, self).__init__(server, name)
         dbconf = dict(_getconf(server))
         poolsize = server.config.postgres.getint('pool_size')
         self._pool = _PgPool(poolsize, **dbconf)

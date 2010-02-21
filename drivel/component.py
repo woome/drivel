@@ -8,7 +8,7 @@ class Component(object):
     asynchronous = True # spawn a coroutine for each message
     message_pool_size = None # set to use a pool rather than coroutines
 
-    def __init__(self, server):
+    def __init__(self, server, name=None):
         self.server = server
         self._mqueue = queue.Queue()
         assert self.subscription is not None
@@ -71,4 +71,39 @@ class Component(object):
             'alive': bool(self._greenlet),
         })
         return stats
+
+class WSGIComponent(Component):
+    urlmapping = None
+
+    def __init__(self, server, name):
+        super(WSGIComponent, self).__init__(server, name)
+        if self.urlmapping is None:
+            # try and get from config
+            try:
+                self.urlmapping = self.config['%s-urlmappings' % name]
+            except KeyError, e:
+                raise NotImplementedError('no url provided')
+
+        if isinstance(self.urlmapping, basestring):
+            server.add_wsgimapping(self.urlmapping, self.subscription)
+        elif isinstance(self.urlmapping, (tuple, list)):
+            for m in self.urlmapping:
+                server.add_wsgimapping(m, self.subscription)
+        elif isinstance(self.urlmapping, dict):
+            for k,v in self.urlmapping:
+                if isinstance(v, (tuple, list)):
+                    for i in v:
+                        server.add_wsgimapping((k, i), self.subscription)
+                else:
+                    server.add_wsgimapping((k,v), self.subscription)
+        else:
+            raise TypeError('Unknown type for WSGIComponent.urlmapping')
+
+    def handle_message(self, message):
+        message, kw, args = message[0], message[1], message[2:]
+        if message is None:
+            return self.do(*args, **kw)
+        else:
+            method = 'do_%s' % message
+            return getattr(self, method)(*args, **kw)
 

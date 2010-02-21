@@ -25,6 +25,17 @@ class ConnectionReplaced(Exception):
 class ConnectionClosed(Exception):
     pass
 
+class PathNotResolved(Exception):
+    pass
+
+def _path_to_subscriber(routes, path):
+    for s,k,r in routes:
+        match = r.search(r)
+        if match:
+            kw = match.groupdict()
+            return s, k, kw
+    raise PathNotResolved(path)
+
 def create_application(server):
     from components.session import SessionConflict # circular import
     authbackend = server.config.http.import_('auth_backend')(server)
@@ -41,24 +52,12 @@ def create_application(server):
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['Could not be authenticated']
-            except etree.XMLSyntaxError, e:
-                log('debug', 'received malformed body from client')
-                start_response('400 Bad Request', [
-                        ('Content-type', 'text/html'),
-                    ], exc_info=sys.exc_info())
-                return ['Could not parse POST body']
-            except InvalidSession, e:
-                log('debug', 'received unparsable or invalid session')
+            except PathNotResolved, e;
+                log('debug', 'no registered component for path')
                 start_response('404 Not Found', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
-                return ['Invalid session url']
-            except SessionConflict, e:
-                log('debug', 'received session id owned by another user')
-                start_response('403 Forbidden', [
-                        ('Content-type', 'text/html'),
-                    ], exc_info=sys.exc_info())
-                return ['Invalid session url for user']
+                return ['404 Not Found']
             except Exception, e:
                 log('error', 'an unexpected exception was raised')
                 log('error', traceback.format_exc())
@@ -127,38 +126,16 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
-        if path[1:2] and path[1] == 'session':
-            try:
-                sessionid = path[2]
-                assert len(sessionid) == 32
-                assert long(sessionid, 16)
-                log('debug', 'request had existing session: %s' % sessionid)
-                server.send('session', 'register', user, sessionid, proc)
-            except (ValueError, IndexError, AssertionError), e:
-                raise InvalidSession()
-        else:
-            sessionid = server.send('session', 'create', user, proc).wait()
-            log('debug', 'created new session for request: %s' % sessionid)
-        log('debug', 'handling %s for user %s' % (request.method, user.username))
-        tosend = []
-        if request.method == 'POST' and request.body:
-            # need error handling here
-            tree = etree.fromstring(request.body)
-            if tree.tag == 'body':
-                tosend = map(etree.tostring, tree.getchildren())
-        jid = server.send('xmppc', 'send', user, tosend).wait()
-        since = (float(request.GET.getone('since'))
-            if 'since' in request.GET else None) # can raise exception
+        body = str(request.body) if request.method == 'POST' else ''
+
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
-            msgs = server.send('history', 'get', user, since).wait()
+            subs, msg, kw = _path_to_subscriber(server, request.path)
+            msgs = server.send(subs, msg, kw, user, request, proc).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)
-            msgs = []
-        except ConnectionReplaced, e:
-            log('debug', 'connection replaced for user %s' % user)
             msgs = []
         except ConnectionClosed, e:
             log('debug', 'connection closed for user %s' % user)
@@ -166,19 +143,14 @@ def create_application(server):
         finally:
             timeout.cancel()
         # do response
-        log('debug', 'got messages %s' % msgs)
+        log('debug', 'got messages %s for user %s' % (msgs, user))
         start_response('200 OK', [('Content-type', 'text/xml')])
-        response = []
-        maxtime = since or 0
-        for t, msg in msgs:
-            response.append(msg)
-            maxtime = max(maxtime, t)
-        opentag = '<body upto="%s" jid="%s" session="%s">' % (repr(maxtime),
-            jid, sessionid)
-        log('debug', 'sending response -- bodytag: %s' % opentag)
-        return [''.join([opentag,
-            "".join(map(str, response)),
-            '</body>'])]
+        if isinstance(msgs, basestring):
+            return [msgs]
+        elif msgs is None:
+            return ['']
+        else:
+            return ['\n'.join(msgs) if msgs else '']
 
     app = error_middleware(application)
     app = linkablecoroutine_middleware(app)

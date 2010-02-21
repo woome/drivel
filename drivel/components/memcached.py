@@ -18,8 +18,8 @@ class _MemcachePool(pools.Pool):
 class ClientPool(Component):
     subscription = 'memcache'
 
-    def __init__(self, server):
-        super(ClientPool, self).__init__(server)
+    def __init__(self, server, name):
+        super(ClientPool, self).__init__(server, name)
         poolsize = server.config.memcache.getint('pool_size')
         servers = [value for name, value
             in server.config['memcache-servers'].items()]

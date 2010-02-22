@@ -30,7 +30,7 @@ class PathNotResolved(Exception):
 
 def _path_to_subscriber(routes, path):
     for s,k,r in routes:
-        match = r.search(r)
+        match = r.search(path)
         if match:
             kw = match.groupdict()
             return s, k, kw
@@ -52,7 +52,7 @@ def create_application(server):
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['Could not be authenticated']
-            except PathNotResolved, e;
+            except PathNotResolved, e:
                 log('debug', 'no registered component for path')
                 start_response('404 Not Found', [
                         ('Content-type', 'text/html'),
@@ -126,13 +126,13 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
-        body = str(request.body) if request.method == 'POST' else ''
+        #body = str(request.body) if request.method == 'POST' else ''
 
         try:
             timeout = api.exc_after(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
-            subs, msg, kw = _path_to_subscriber(server, request.path)
+            subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
             msgs = server.send(subs, msg, kw, user, request, proc).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)

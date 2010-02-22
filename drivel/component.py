@@ -90,7 +90,7 @@ class WSGIComponent(Component):
             for m in self.urlmapping:
                 server.add_wsgimapping(m, self.subscription)
         elif isinstance(self.urlmapping, dict):
-            for k,v in self.urlmapping:
+            for k,v in self.urlmapping.iteritems():
                 if isinstance(v, (tuple, list)):
                     for i in v:
                         server.add_wsgimapping((k, i), self.subscription)
@@ -100,10 +100,10 @@ class WSGIComponent(Component):
             raise TypeError('Unknown type for WSGIComponent.urlmapping')
 
     def handle_message(self, message):
-        message, kw, args = message[0], message[1], message[2:]
-        if message is None:
+        msg, kw, args = message[0], message[1], message[2:]
+        if msg is None:
             return self.do(*args, **kw)
         else:
-            method = 'do_%s' % message
+            method = 'do_%s' % msg
             return getattr(self, method)(*args, **kw)
 

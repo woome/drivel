@@ -19,8 +19,13 @@ class PushQueue(WSGIComponent):
         except KeyError, e:
             q = queue.Queue()
             self.users[username] = q
-        msg = q.get()
-        return [msg]
+        msg = [q.get()]
+        try:
+            while True:
+                msg.append(q.get_nowait())
+        except queue.Empty, e:
+            pass
+        return msg
         
     def do_pushmsg(self, user, request, proc, username):
         if username in self.users:

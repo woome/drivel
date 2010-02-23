@@ -6,8 +6,9 @@ import sys
 import traceback
 # third-party imports
 import eventlet
-from eventlet import api
 from eventlet import greenthread
+from eventlet import hubs
+from eventlet import timeout
 from lxml import etree
 from webob import Request
 # local imports
@@ -86,7 +87,7 @@ def create_application(server):
             try:
                 log('debug', 'watching connection %s for termination'
                     ' at client end' % fileno)
-                api.trampoline(sock, read=True)
+                hubs.trampoline(sock, read=True)
                 d = sock.read()
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
@@ -129,7 +130,7 @@ def create_application(server):
         #body = str(request.body) if request.method == 'POST' else ''
 
         try:
-            timeout = api.exc_after(tsecs, TimeoutException())
+            timeouttimer = timeout.Timeout(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
@@ -141,7 +142,7 @@ def create_application(server):
             log('debug', 'connection closed for user %s' % user)
             msgs = []
         finally:
-            timeout.cancel()
+            timeouttimer.cancel()
         # do response
         log('debug', 'got messages %s for user %s' % (msgs, user))
         start_response('200 OK', [('Content-type', 'text/xml')])

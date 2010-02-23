@@ -6,8 +6,8 @@ import sys
 import traceback
 # third-party imports
 import eventlet
-from eventlet import api
 from eventlet import greenthread
+from eventlet import hubs
 from lxml import etree
 from webob import Request
 # local imports
@@ -87,7 +87,7 @@ def create_application(server):
             try:
                 log('debug', 'watching connection %s for termination'
                     ' at client end' % fileno)
-                api.trampoline(sock, read=True)
+                hubs.trampoline(sock, read=True)
                 d = sock.read()
                 if not d and bool(proc):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
@@ -150,7 +150,7 @@ def create_application(server):
         since = (float(request.GET.getone('since'))
             if 'since' in request.GET else None) # can raise exception
         try:
-            timeout = api.exc_after(tsecs, TimeoutException())
+            timeout = greenthread.exc_after(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             msgs = server.send('history', 'get', user, since).wait()

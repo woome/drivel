@@ -5,7 +5,7 @@ from eventlet import queue
 class Component(object):
     subscription = None
     asynchronous = True # spawn a coroutine for each message
-    message_pool_size = None # set to use a pool rather than coroutines
+    message_pool_size = 1000 # set to use a pool rather than coroutines
 
     def __init__(self, server):
         self.server = server
@@ -15,7 +15,7 @@ class Component(object):
         self._greenlet = eventlet.spawn_n(self._process)
         self._coropool = None
         if self.asynchronous:
-            poolsize = self.message_pool_size or 1000
+            poolsize = self.message_pool_size
             self._coropool = eventlet.GreenPool(size=poolsize)
             self._execute = self._coropool.spawn
         else:

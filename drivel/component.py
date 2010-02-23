@@ -56,7 +56,7 @@ class Component(object):
                 'balance': self._coropool.sem.balance,
             })
         stats.update({
-            'items': len(self._mqueue),
+            'items': self._mqueue.qsize(),
             'alive': bool(self._greenlet),
         })
         return stats

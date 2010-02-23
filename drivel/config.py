@@ -1,7 +1,42 @@
 from __future__ import with_statement
 import ConfigParser
 
-from eventlet import api
+# copy of the deprecated named() function from eventlet.api
+def named(name):
+    """Return an object given its name.
+
+    The name uses a module-like syntax, eg::
+
+      os.path.join
+
+    or::
+
+      mulib.mu.Resource
+
+    """
+    toimport = name
+    obj = None
+    import_err_strings = []
+    while toimport:
+        try:
+            obj = __import__(toimport)
+            break
+        except ImportError, err:
+            # print 'Import error on %s: %s' % (toimport, err)  # debugging spam
+            import_err_strings.append(err.__str__())
+            toimport = '.'.join(toimport.split('.')[:-1])
+    if obj is None:
+        raise ImportError('%s could not be imported.  Import errors: %r' % (name, import_err_strings))
+    for seg in name.split('.')[1:]:
+        try:
+            obj = getattr(obj, seg)
+        except AttributeError:
+            dirobj = dir(obj)
+            dirobj.sort()
+            raise AttributeError('attribute %r missing from %r (%r) %r.  Import errors: %r' % (
+                seg, obj, dirobj, name, import_err_strings))
+    return obj
+
 
 class Config(dict):
     """Better Config Container.
@@ -19,7 +54,7 @@ class Config(dict):
                 self[key] = Config(val) if isinstance(val, dict) else val
             
     def import_(self, key):
-        return api.named(self[key])
+        return named(self[key])
 
     def get(self, key, default=None):
         if isinstance(key, tuple):

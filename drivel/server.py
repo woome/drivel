@@ -96,7 +96,7 @@ class Server(object):
             in self.components.items())
         stats.update({
             'server': {
-                'items': len(self._mqueue),
+                'items': self._mqueue.qsize(),
             }
         })
         return stats

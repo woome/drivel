@@ -32,3 +32,10 @@ class PushQueue(WSGIComponent):
             self.users[username].put(str(request.body))
         return []
 
+    def stats(self):
+        stats = super(PushQueue, self).stats()
+        stats.update({
+            'waiting_users': len(self.users),
+        })
+        return stats
+

@@ -1,12 +1,11 @@
 import errno
 import socket
 
-from pg8000 import DBAPI
 from pg8000 import errors
 from eventlet import pools
 
 from drivel.component import Component
-#from drivel.green.pg8000 import DBAPI
+from drivel.green.pg8000 import DBAPI
 
 
 # patch some pg8000 silliness.

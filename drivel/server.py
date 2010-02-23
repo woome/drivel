@@ -4,7 +4,6 @@ import logging
 import sys
 
 import eventlet
-from eventlet import api
 from eventlet import backdoor
 from eventlet import event
 from eventlet import hubs
@@ -37,7 +36,7 @@ class Server(object):
             self.log('Server', 'info', 'enabling backdoor on port %s'
                 % bdport)
             eventlet.spawn_n(backdoor.backdoor_server,
-                api.tcp_listener(('127.0.0.1', bdport)),
+                eventlet.listen(('127.0.0.1', bdport)),
                 locals={'server': self})
         app = create_application(self)
         self.wsgiapp = app
@@ -45,7 +44,7 @@ class Server(object):
             numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))
             host = self.config.http.address
             port = self.config.http.getint('port')
-            sock = api.tcp_listener((host, port))
+            sock = eventlet.listen((host, port))
             pool = self.server_pool = eventlet.GreenPool(10000)
             wsgi.server(sock, app, custom_pool=pool)
 

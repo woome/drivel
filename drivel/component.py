@@ -16,10 +16,10 @@ class Component(object):
         self._coropool = None
         if self.asynchronous:
             poolsize = self.message_pool_size or 1000
-            self._coropool = eventlet.GreenPool(max_size=poolsize)
+            self._coropool = eventlet.GreenPool(size=poolsize)
             self._execute = self._coropool.spawn
         else:
-            self._coropool = eventlet.GreenPool(max_size=1)
+            self._coropool = eventlet.GreenPool(size=1)
             self._execute = lambda func, *args: self._coropool.spawn(func, *args).wait()
         self.log = partial(self.server.log, self.__class__.__name__)
             

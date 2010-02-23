@@ -8,6 +8,7 @@ import traceback
 import eventlet
 from eventlet import greenthread
 from eventlet import hubs
+from eventlet import timeout
 from lxml import etree
 from webob import Request
 # local imports
@@ -150,7 +151,7 @@ def create_application(server):
         since = (float(request.GET.getone('since'))
             if 'since' in request.GET else None) # can raise exception
         try:
-            timeout = greenthread.exc_after(tsecs, TimeoutException())
+            timeouttimer = timeout.Timeout(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             msgs = server.send('history', 'get', user, since).wait()
@@ -164,7 +165,7 @@ def create_application(server):
             log('debug', 'connection closed for user %s' % user)
             msgs = []
         finally:
-            timeout.cancel()
+            timeouttimer.cancel()
         # do response
         log('debug', 'got messages %s' % msgs)
         start_response('200 OK', [('Content-type', 'text/xml')])

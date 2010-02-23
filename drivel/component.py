@@ -1,6 +1,5 @@
 from functools import partial
 import eventlet
-from eventlet import proc
 from eventlet import queue
 
 class Component(object):
@@ -15,17 +14,13 @@ class Component(object):
         self.server.subscribe(self.subscription, self._mqueue)
         self._greenlet = eventlet.spawn_n(self._process)
         self._coropool = None
-        self._procset = None
-        if self.message_pool_size and self.asynchronous:
-            self._coropool = eventlet.GreenPool(max_size=self.message_pool_size)
-            self._execute = self._coropool.execute_async
-        elif self.asynchronous:
-            #self._execute = api.spawn
-            self._procset = proc.RunningProcSet()
-            self._execute = self._procset.spawn
+        if self.asynchronous:
+            poolsize = self.message_pool_size or 1000
+            self._coropool = eventlet.GreenPool(max_size=poolsize)
+            self._execute = self._coropool.spawn
         else:
             self._coropool = eventlet.GreenPool(max_size=1)
-            self._execute = lambda func, *args: self._coropool.execute(func, *args).wait()
+            self._execute = lambda func, *args: self._coropool.spawn(func, *args).wait()
         self.log = partial(self.server.log, self.__class__.__name__)
             
     @property
@@ -51,20 +46,14 @@ class Component(object):
         self._greenlet.throw()
         if self._coropool:
             self._coropool.killall()
-        elif self._procset:
-            self._procset.killall()
 
     def stats(self):
         stats = {}
         if self._coropool:
             stats.update({
                 'free': self._coropool.free(),
-                'running': self._coropool.current_size,
+                'running': self._coropool.running(),
                 'balance': self._coropool.sem.balance,
-            })
-        elif self._procset:
-            stats.update({
-                'running': len(self._procset),
             })
         stats.update({
             'items': len(self._mqueue),

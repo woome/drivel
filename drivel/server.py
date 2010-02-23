@@ -105,7 +105,9 @@ class Server(object):
             in self.components.items())
         stats.update({
             'server': {
-                'items': len(self._mqueue),
+                'items': self._mqueue.qsize(),
+                'wsgi_free': self.server_pool.free(),
+                'wsgi_running': self.server_pool.running(),
             }
         })
         return stats

@@ -1,7 +1,6 @@
 from eventlet import pools
-import memcache
 from drivel.component import Component
-#from drivel.green import memcache
+from drivel.green import memcache
 
 class _MemcachePool(pools.Pool):
     def __init__(self, pool_size, servers, *args, **kwargs):

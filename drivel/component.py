@@ -66,6 +66,8 @@ class WSGIComponent(Component):
 
     def __init__(self, server, name):
         super(WSGIComponent, self).__init__(server, name)
+        self.active_messages = {}
+        self.processed_messages = {}
         if self.urlmapping is None:
             # try and get from config
             try:
@@ -90,9 +92,24 @@ class WSGIComponent(Component):
 
     def handle_message(self, message):
         msg, kw, args = message[0], message[1], message[2:]
-        if msg is None:
-            return self.do(*args, **kw)
-        else:
-            method = 'do_%s' % msg
-            return getattr(self, method)(*args, **kw)
+        self.active_messages[msg] = self.active_messages.get(msg, 0) + 1
+        self.processed_messages[msg] = self.processed_messages.get(msg, 0) + 1
+        try:
+            if msg is None:
+                return self.do(*args, **kw)
+            else:
+                method = 'do_%s' % msg
+                return getattr(self, method)(*args, **kw)
+        finally:
+            self.active_message[msg] -= 1
+            self.processed_message[msg] -= 1
+
+    def stats(self):
+        stats = super(WSGIComponent, self).stats()
+        stats.update({
+            'active_messages': self.active_messages,
+            'processed_messages': self.processed_messages,
+        })
+        return stats
+
 

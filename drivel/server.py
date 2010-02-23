@@ -106,10 +106,8 @@ class Server(object):
 def start(config, options):
     if 'hub_module' in config.server:
         hubs.use_hub(config.server.import_('hub_module'))
-    from eventlet import util
-    util.wrap_socket_with_coroutine_socket()
-    util.wrap_select_with_coroutine_select()
-    util.wrap_pipes_with_coroutine_pipes()
+    from eventlet import patcher
+    patcher.monkey_patch(all=False, socket=True, select=True, os=True)
     server = Server(config)
     server.start()
 

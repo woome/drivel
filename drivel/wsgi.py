@@ -9,7 +9,6 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import timeout
-from lxml import etree
 from webob import Request
 # local imports
 from auth import UnauthenticatedUser

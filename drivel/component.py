@@ -14,6 +14,8 @@ class Component(object):
         self.server.subscribe(self.subscription, self._mqueue)
         self._greenlet = eventlet.spawn_n(self._process)
         self._coropool = None
+        self.received_messages = 0
+        self.handled_messages = 0
         if self.asynchronous:
             poolsize = self.message_pool_size
             self._coropool = eventlet.GreenPool(size=poolsize)
@@ -30,11 +32,13 @@ class Component(object):
     def _process(self):
         while True:
             event, message = self._mqueue.get()
+            self.received_messages += 1
             self._execute(self._handle_message, event, message)
         
     def _handle_message(self, event, message):
         try:
             res = self.handle_message(message)
+            self.handled_messages += 1
             event.send(res)
         except Exception, e:
             event.send(exc=e)
@@ -57,6 +61,8 @@ class Component(object):
             })
         stats.update({
             'items': self._mqueue.qsize(),
+            'handled': self.handled_messages,
+            'received': self.received_messages,
             'alive': bool(self._greenlet),
         })
         return stats

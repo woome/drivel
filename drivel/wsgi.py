@@ -115,6 +115,20 @@ def create_application(server):
         rfile = getattr(environ['wsgi.input'], 'rfile', None)
         request = Request(environ)
         proc = environ['drivel.wsgi_proc']
+        if request.method == 'OPTIONS' and 'Origin' in request.headers and \
+                'Access-Control-Request-Method' in request.headers:
+            headers = []
+            origins = server.config['access-control-origins']
+            for key, origin in origins.items():
+                if origin == request.headers['Origin']:
+                    headers = [('Access-Control-Allow-Origin', request.headers['Origin']),
+                         ('Access-Control-Max-Age', 1728000),
+                         ('Access-Control-Allow-Methods', 'GET, POST')]
+                    if request.headers.get('Access-Control-Request-Headers', None):
+                        headers.append(('Access-Control-Allow-Headers',
+                            request.headers['Access-Control-Request-Headers']))
+            start_response('200 OK', headers)
+            return ['']
         if request.method not in ['GET', 'POST']:
             start_response('405 Method Not Allowed', [('Allow', 'GET, POST')])
             return ['']

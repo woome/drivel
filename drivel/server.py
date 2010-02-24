@@ -14,6 +14,18 @@ from eventlet import wsgi
 from drivel.config import fromfile as config_fromfile
 from drivel.wsgi import create_application
 
+class safe_exit(object):
+    exit_advice = 'exit from telnet is ^]'
+    def __call__(self):
+        print self.exit_advice
+
+    def __repr__(self):
+        return self.exit_advice
+
+    def __str__(self):
+        return self.exit_advice
+
+
 class Server(object):
     def __init__(self, config):
         self.config = config
@@ -39,7 +51,9 @@ class Server(object):
                 % bdport)
             eventlet.spawn_n(backdoor.backdoor_server,
                 eventlet.listen(('127.0.0.1', bdport)),
-                locals={'server': self})
+                locals={'server': self,
+                        'exit': safe_exit(),
+                        'quit': safe_exit()})
         app = create_application(self)
         self.wsgiapp = app
         if start_listeners:

@@ -1,4 +1,5 @@
 from eventlet import queue
+from eventlet import greenthread
 from drivel.component import WSGIComponent
 
 class PushQueue(WSGIComponent):
@@ -14,6 +15,8 @@ class PushQueue(WSGIComponent):
 
     def do_listen(self, user, request, proc):
         username = user.username
+        cgt = greenthread.getcurrent()
+        proc.link(lambda gt: cgt.throw())
         try:
             q= self.users[username]
         except KeyError, e:

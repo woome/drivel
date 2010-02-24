@@ -101,8 +101,7 @@ class WSGIComponent(Component):
                 method = 'do_%s' % msg
                 return getattr(self, method)(*args, **kw)
         finally:
-            self.active_message[msg] -= 1
-            self.processed_message[msg] -= 1
+            self.active_messages[msg] -= 1
 
     def stats(self):
         stats = super(WSGIComponent, self).stats()

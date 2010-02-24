@@ -1,6 +1,7 @@
 from __future__ import with_statement
 from collections import defaultdict
 import logging
+import pprint
 import re
 import sys
 
@@ -53,7 +54,9 @@ class Server(object):
                 eventlet.listen(('127.0.0.1', bdport)),
                 locals={'server': self,
                         'exit': safe_exit(),
-                        'quit': safe_exit()})
+                        'quit': safe_exit(),
+                        'stats': lambda: pprint.pprint(self.stats()),
+                })
         app = create_application(self)
         self.wsgiapp = app
         if start_listeners:

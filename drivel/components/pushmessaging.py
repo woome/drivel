@@ -4,6 +4,7 @@ from drivel.component import WSGIComponent
 
 class PushQueue(WSGIComponent):
     subscription = 'push'
+    message_pool_size = 10000 
     urlmapping = {
         'listen': r'^/[^/]+/alerts/',
         'pushmsg': r'/[^/]+/push/(?P<username>[^/]+)/$',

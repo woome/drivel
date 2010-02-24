@@ -39,7 +39,7 @@ class PushQueue(WSGIComponent):
     def stats(self):
         stats = super(PushQueue, self).stats()
         stats.update({
-            'waiting_users': len(self.users),
+            'pushmessaging:waiting_users': len(self.users),
         })
         return stats
 

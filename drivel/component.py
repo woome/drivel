@@ -16,6 +16,7 @@ class Component(object):
         self._coropool = None
         self.received_messages = 0
         self.handled_messages = 0
+        self.num_errors = 0
         if self.asynchronous:
             poolsize = self.message_pool_size
             self._coropool = eventlet.GreenPool(size=poolsize)
@@ -41,6 +42,7 @@ class Component(object):
             self.handled_messages += 1
             event.send(res)
         except Exception, e:
+            self.num_errors += 1
             event.send(exc=e)
 
     def handle_message(self, message):
@@ -63,6 +65,7 @@ class Component(object):
             'items': self._mqueue.qsize(),
             'handled': self.handled_messages,
             'received': self.received_messages,
+            'errors': self.num_errors,
             'alive': bool(self._greenlet),
         })
         return stats

@@ -1,6 +1,7 @@
 from eventlet import pools
+import memcache
 from drivel.component import Component
-from drivel.green import memcache
+#from drivel.green import memcache
 
 class _MemcachePool(pools.Pool):
     def __init__(self, pool_size, servers, *args, **kwargs):
@@ -28,8 +29,14 @@ class ClientPool(Component):
         method = message[0]
         args = message[1:]
         client = self._pool.get()
-        ret = getattr(client, method)(*args)
-        self._pool.put(client)
+        try:
+            ret = getattr(client, method)(*args)
+        except Exception, e:
+            self._pool.create()
+            self.log('error', 'error accessing %s(%r): %s' % (method, args, e))
+            raise
+        else:
+            self._pool.put(client)
         return ret
 
     def stats(self):

@@ -32,10 +32,10 @@ class ClientPool(Component):
         try:
             ret = getattr(client, method)(*args)
         except Exception, e:
-            self._pool.create()
+            client = self._pool.create()
             self.log('error', 'error accessing %s(%r): %s' % (method, args, e))
             raise
-        else:
+        finally:
             self._pool.put(client)
         return ret
 

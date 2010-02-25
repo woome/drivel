@@ -20,7 +20,7 @@ class PushQueue(WSGIComponent):
     def do_listen(self, user, request, proc):
         username = user.username
         cgt = greenthread.getcurrent()
-        proc().link(dothrow, cgt)
+        proc.link(dothrow, cgt)
         try:
             q= self.users[username]
         except KeyError, e:

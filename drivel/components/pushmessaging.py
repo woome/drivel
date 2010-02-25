@@ -1,9 +1,12 @@
-from eventlet import queue
 from eventlet import greenthread
+from eventlet import hubs
+from eventlet import queue
 from drivel.component import WSGIComponent
 
 def dothrow(gt, cgt):
-    greenthread.kill(cgt)
+    hubs.get_hub().schedule_call_local(0,
+        greenthread.getcurrent().switch())
+    cgt.throw()
 
 class PushQueue(WSGIComponent):
     subscription = 'push'

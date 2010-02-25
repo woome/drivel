@@ -120,12 +120,20 @@ class Server(object):
     def stats(self):
         stats = dict((key, comp.stats()) for key, comp
             in self.components.items())
+        hub = hubs.get_hub()
         stats.update({
             'server': {
                 'items': self._mqueue.qsize(),
                 'wsgi_free': self.server_pool.free(),
                 'wsgi_running': self.server_pool.running(),
-            }
+            },
+            'eventlet': {
+                'next_timers': len(hub.next_timers),
+                'timers': len(hub.timers),
+                'readers': len(hub.listeners['read']),
+                'writers': len(hub.listeners['write']),
+                'timers_count': hub.get_timers_count(),
+            },
         })
         return stats
 

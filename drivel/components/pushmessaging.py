@@ -2,6 +2,9 @@ from eventlet import queue
 from eventlet import greenthread
 from drivel.component import WSGIComponent
 
+def dothrow(gt, cgt):
+    greenthread.kill(cgt)
+
 class PushQueue(WSGIComponent):
     subscription = 'push'
     message_pool_size = 10000 
@@ -17,7 +20,7 @@ class PushQueue(WSGIComponent):
     def do_listen(self, user, request, proc):
         username = user.username
         cgt = greenthread.getcurrent()
-        proc.link(lambda gt: cgt.throw())
+        proc().link(dothrow, cgt)
         try:
             q= self.users[username]
         except KeyError, e:

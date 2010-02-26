@@ -29,6 +29,8 @@ def MemcacheAuthBackend(server):
     secret_key = server.config.django.secret_key # change section to django
     def doauth(request):
         sessionid = request.cookies.get(session_cookie)
+        if not sessionid:
+            raise UnauthenticatedUser()
         session = server.send('memcache', 'get', sessionid).wait()
         if not session:
             # hack to do db read-through. need a better way to configure this behaviour

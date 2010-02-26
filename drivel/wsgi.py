@@ -4,6 +4,7 @@ import os
 import socket
 import sys
 import traceback
+import weakref
 # third-party imports
 import eventlet
 from eventlet import greenthread
@@ -75,7 +76,7 @@ def create_application(server):
             
             """
             proc = eventlet.spawn(app, environ, start_response)
-            environ['drivel.wsgi_proc'] = proc
+            environ['drivel.wsgi_proc'] = weakref.ref(proc)
             return proc.wait()
         return application
 
@@ -88,25 +89,27 @@ def create_application(server):
                     ' at client end' % fileno)
                 hubs.trampoline(sock, read=True)
                 d = sock.read()
-                if not d and bool(proc):
+                if not d and bool(proc()):
                     log('debug', 'terminating wsgi proc using closed sock %s' %
                         fileno)
-                    greenthread.kill(proc, ConnectionClosed())
+                    greenthread.kill(proc(), ConnectionClosed())
             except socket.error, e:
                 if e[0] == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
-                    greenthread.kill(proc, ConnectionClosed())
+                    if proc() is not None:
+                        greenthread.kill(proc(), ConnectionClosed())
                 else:
                     log('debug', 'got error %s for sock %' % (e, fileno))
             except IOError, e:
                 if e.errno == errno.EPIPE:
                     log('debug', 'got broken pipe on sock %s. terminating.' % fileno)
-                    greenthread.kill(proc, ConnectionClosed())
+                    if proc() is not None:
+                        greenthread.kill(proc(), ConnectionClosed())
                 else:
                     log('debug', 'got error %s for sock %' % (e, fileno))
             #except LinkedExited, e:
                 #pass
-        g = eventlet.spawn_n(watcher, sock, proc)
+        g = eventlet.spawn(watcher, sock, proc)
         #proc.link(g)
 
     # the actual wsgi app

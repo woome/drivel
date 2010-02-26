@@ -5,7 +5,7 @@ from drivel.component import WSGIComponent
 
 def dothrow(gt, cgt):
     hubs.get_hub().schedule_call_local(0,
-        greenthread.getcurrent().switch())
+        greenthread.getcurrent().switch)
     cgt.throw()
 
 class PushQueue(WSGIComponent):

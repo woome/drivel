@@ -37,6 +37,11 @@ def _path_to_subscriber(routes, path):
             return s, k, kw
     raise PathNotResolved(path)
 
+def dothrow(gt, cgt):
+    hubs.get_hub().schedule_call_local(0,
+        greenthread.getcurrent().switch)
+    cgt.throw()
+
 def create_application(server):
     from components.session import SessionConflict # circular import
     authbackend = server.config.http.import_('auth_backend')(server)
@@ -84,6 +89,10 @@ def create_application(server):
         """listen for EOF on socket."""
         def watcher(sock, proc):
             fileno = "%s" % (sock.fileno(),)
+            if proc():
+                proc().link(dothrow, greenthread.getcurrent())
+            else:
+                return
             try:
                 log('debug', 'watching connection %s for termination'
                     ' at client end' % fileno)

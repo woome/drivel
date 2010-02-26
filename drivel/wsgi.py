@@ -81,7 +81,7 @@ def create_application(server):
             
             """
             proc = eventlet.spawn(app, environ, start_response)
-            environ['drivel.wsgi_proc'] = weakref.ref(proc)
+            #environ['drivel.wsgi_proc'] = weakref.ref(proc)
             return proc.wait()
         return application
 
@@ -126,7 +126,8 @@ def create_application(server):
         # webob can change this, so get it now!
         rfile = getattr(environ['wsgi.input'], 'rfile', None)
         request = Request(environ)
-        proc = environ['drivel.wsgi_proc']
+        #proc = environ['drivel.wsgi_proc']
+        proc = weakref.ref(greenthread.getcurrent())
         if request.method == 'OPTIONS' and 'Origin' in request.headers and \
                 'Access-Control-Request-Method' in request.headers:
             headers = []

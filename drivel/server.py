@@ -6,6 +6,7 @@ import pprint
 import re
 import signal
 import sys
+import time
 
 import eventlet
 from eventlet import backdoor
@@ -21,6 +22,12 @@ def statdumper(server, interval):
     while True:
         pprint.pprint(server.stats())
         eventlet.sleep(interval)
+
+def timed_switch_out(self):
+    self._last_switch_out = time.time()
+
+from eventlet.greenthread import GreenThread
+GreenThread.switch_out = timed_switch_out
 
 class safe_exit(object):
     exit_advice = 'exit from telnet is ^]'
@@ -132,7 +139,7 @@ class Server(object):
             self.config.server.log_level.upper())
         logging.basicConfig(level=level, stream=sys.stdout)
 
-    def stats(self, gc_collect=True):
+    def stats(self, gc_collect=False):
         stats = dict((key, comp.stats()) for key, comp
             in self.components.items())
         hub = hubs.get_hub()

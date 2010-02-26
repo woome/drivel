@@ -1,8 +1,10 @@
 from __future__ import with_statement
 from collections import defaultdict
+import gc
 import logging
 import pprint
 import re
+import signal
 import sys
 
 import eventlet
@@ -15,6 +17,12 @@ from eventlet import wsgi
 from drivel.config import fromfile as config_fromfile
 from drivel.wsgi import create_application
 
+def statdumper(server, interval):
+    print 'QQQ'
+    while True:
+        pprint.pprint(server.stats())
+        eventlet.sleep(interval)
+
 class safe_exit(object):
     exit_advice = 'exit from telnet is ^]'
     def __call__(self):
@@ -25,6 +33,11 @@ class safe_exit(object):
 
     def __str__(self):
         return self.exit_advice
+
+
+class dummylog(object):
+    def write(self, data):
+        pass
 
 
 class Server(object):
@@ -65,7 +78,7 @@ class Server(object):
             port = self.config.http.getint('port')
             sock = eventlet.listen((host, port))
             pool = self.server_pool = eventlet.GreenPool(10000)
-            wsgi.server(sock, app, custom_pool=pool)
+            wsgi.server(sock, app, custom_pool=pool, log=dummylog())
 
     def stop(self):
         for name, mod in self.components.items():
@@ -121,6 +134,8 @@ class Server(object):
         stats = dict((key, comp.stats()) for key, comp
             in self.components.items())
         hub = hubs.get_hub()
+        gettypes = lambda t: [o for o in gc.get_objects() if 
+            type(o).__name__ == t]
         stats.update({
             'server': {
                 'items': self._mqueue.qsize(),
@@ -134,6 +149,10 @@ class Server(object):
                 'writers': len(hub.listeners['write']),
                 'timers_count': hub.get_timers_count(),
             },
+            'python': {
+                'greenthreads': len(gettypes('GreenThread')),
+                'gc_tracked_objs': len(gc.get_objects()),
+            }
         })
         return stats
 
@@ -144,6 +163,19 @@ def start(config, options):
     from eventlet import patcher
     patcher.monkey_patch(all=False, socket=True, select=True, os=True)
     server = Server(config)
+
+    #def drop_to_shell(s, f):
+        #from IPython.Shell import IPShell
+        #s = IPShell([], {'server': server,
+                         #'stats': lambda: pprint.pprint(server.stats()),
+                        #})
+        #s.mainloop()
+    #signal.signal(signal.SIGUSR2, drop_to_shell)
+
+    if options.statdump:
+        print 'starting statdumper'
+        interval = options.statdump
+        eventlet.spawn_after(interval, statdumper, server, interval)
     server.start()
 
 def main():
@@ -151,6 +183,9 @@ def main():
     parser = OptionParser()
     parser.add_option('-c', '--config', dest='config',
         help="configuration file")
+    parser.add_option('-s', '--statdump', dest='statdump',
+        metavar='INTERVAL', type="int",
+        help="dump stats at INTERVAL seconds")
     options, args = parser.parse_args()
     if not options.config:
         parser.error('please specify a config file')

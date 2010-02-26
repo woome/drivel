@@ -18,7 +18,6 @@ from drivel.config import fromfile as config_fromfile
 from drivel.wsgi import create_application
 
 def statdumper(server, interval):
-    print 'QQQ'
     while True:
         pprint.pprint(server.stats())
         eventlet.sleep(interval)
@@ -41,8 +40,9 @@ class dummylog(object):
 
 
 class Server(object):
-    def __init__(self, config):
+    def __init__(self, config, options):
         self.config = config
+        self.options = options
         self.components = {}
         self._mqueue = queue.Queue()
         self.subscriptions = defaultdict(list)
@@ -78,7 +78,9 @@ class Server(object):
             port = self.config.http.getint('port')
             sock = eventlet.listen((host, port))
             pool = self.server_pool = eventlet.GreenPool(10000)
-            wsgi.server(sock, app, custom_pool=pool, log=dummylog())
+            log = (self.options.nohttp or self.options.statdump) and \
+                dummylog() or None
+            wsgi.server(sock, app, custom_pool=pool, log=log)
 
     def stop(self):
         for name, mod in self.components.items():
@@ -162,7 +164,7 @@ def start(config, options):
         hubs.use_hub(config.server.import_('hub_module'))
     from eventlet import patcher
     patcher.monkey_patch(all=False, socket=True, select=True, os=True)
-    server = Server(config)
+    server = Server(config, options)
 
     #def drop_to_shell(s, f):
         #from IPython.Shell import IPShell
@@ -186,6 +188,9 @@ def main():
     parser.add_option('-s', '--statdump', dest='statdump',
         metavar='INTERVAL', type="int",
         help="dump stats at INTERVAL seconds")
+    parser.add_option('-n', '--no-http-logs', dest='nohttp',
+        action="store_true",
+        help="disable logging of http requests from wsgi server")
     options, args = parser.parse_args()
     if not options.config:
         parser.error('please specify a config file')

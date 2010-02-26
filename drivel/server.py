@@ -175,7 +175,6 @@ def start(config, options):
     #signal.signal(signal.SIGUSR2, drop_to_shell)
 
     if options.statdump:
-        print 'starting statdumper'
         interval = options.statdump
         eventlet.spawn_after(interval, statdumper, server, interval)
     server.start()

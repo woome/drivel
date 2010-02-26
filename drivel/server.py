@@ -132,12 +132,14 @@ class Server(object):
             self.config.server.log_level.upper())
         logging.basicConfig(level=level, stream=sys.stdout)
 
-    def stats(self):
+    def stats(self, gc_collect=True):
         stats = dict((key, comp.stats()) for key, comp
             in self.components.items())
         hub = hubs.get_hub()
         gettypes = lambda t: [o for o in gc.get_objects() if 
             type(o).__name__ == t]
+        if gc_collect:
+            gc.collect() and gc.collect()
         stats.update({
             'server': {
                 'items': self._mqueue.qsize(),

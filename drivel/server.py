@@ -57,13 +57,13 @@ class Server(object):
         self.log('Server', 'info', 'starting server')
         for name in self.config.components:
             self.components[name] = self.config.components.import_(name)(self, name)
-        self._greenlet = eventlet.spawn_n(self._process)
+        self._greenlet = eventlet.spawn(self._process)
         if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
             bdport = self.config.getint(('server', 'backdoor_port'))
             self.log('Server', 'info', 'enabling backdoor on port %s'
                 % bdport)
-            eventlet.spawn_n(backdoor.backdoor_server,
+            eventlet.spawn(backdoor.backdoor_server,
                 eventlet.listen(('127.0.0.1', bdport)),
                 locals={'server': self,
                         'exit': safe_exit(),

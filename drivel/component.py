@@ -12,7 +12,7 @@ class Component(object):
         self._mqueue = queue.Queue()
         assert self.subscription is not None
         self.server.subscribe(self.subscription, self._mqueue)
-        self._greenlet = eventlet.spawn_n(self._process)
+        self._greenlet = eventlet.spawn(self._process)
         self._coropool = None
         self.received_messages = 0
         self.handled_messages = 0

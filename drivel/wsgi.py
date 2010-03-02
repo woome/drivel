@@ -10,6 +10,7 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import timeout
+import simplejson
 from webob import Request
 # local imports
 from auth import UnauthenticatedUser
@@ -121,6 +122,14 @@ def create_application(server):
         g = eventlet.spawn(watcher, sock, proc)
         #proc.link(g)
 
+    def access_control(request):
+        origins = server.config['access-control-origins']
+        if 'Origin' in request.headers:
+            for key, origin in origins.items():
+                if origin == request.headers['Origin']:
+                    return [('Access-Control-Allow-Origin', request.headers['Origin'])]
+        return []
+
     # the actual wsgi app
     def application(environ, start_response):
         # webob can change this, so get it now!
@@ -130,16 +139,13 @@ def create_application(server):
         proc = weakref.ref(greenthread.getcurrent())
         if request.method == 'OPTIONS' and 'Origin' in request.headers and \
                 'Access-Control-Request-Method' in request.headers:
-            headers = []
-            origins = server.config['access-control-origins']
-            for key, origin in origins.items():
-                if origin == request.headers['Origin']:
-                    headers = [('Access-Control-Allow-Origin', request.headers['Origin']),
-                         ('Access-Control-Max-Age', 1728000),
-                         ('Access-Control-Allow-Methods', 'GET, POST')]
-                    if request.headers.get('Access-Control-Request-Headers', None):
-                        headers.append(('Access-Control-Allow-Headers',
-                            request.headers['Access-Control-Request-Headers']))
+            headers = access_control(request)
+            if headers:
+                headers.extend([('Access-Control-Max-Age', 1728000),
+                     ('Access-Control-Allow-Methods', 'GET, POST')])
+                if request.headers.get('Access-Control-Request-Headers', None):
+                    headers.append(('Access-Control-Allow-Headers',
+                        request.headers['Access-Control-Request-Headers']))
             start_response('200 OK', headers)
             return ['']
         if request.method not in ['GET', 'POST']:
@@ -171,7 +177,11 @@ def create_application(server):
             timeouttimer.cancel()
         # do response
         log('debug', 'got messages %s for user %s' % (msgs, user))
-        start_response('200 OK', [('Content-type', 'text/xml')])
+        headers = [('Content-type', 'text/html')]
+        headers.extend(access_control(request))
+        start_response('200 OK', headers)
+        if 'jsonpcallback' in request.GET:
+            msgs = '%s(%s)' % (request.GET['jsonpcallback'], simplejson.dumps(msgs))
         if isinstance(msgs, basestring):
             return [msgs]
         elif msgs is None:

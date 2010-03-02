@@ -16,6 +16,7 @@ from eventlet import queue
 from eventlet import wsgi
 
 from drivel.config import fromfile as config_fromfile
+from drivel.utils import debug
 from drivel.wsgi import create_application
 
 def statdumper(server, interval):
@@ -73,6 +74,7 @@ class Server(object):
             eventlet.spawn(backdoor.backdoor_server,
                 eventlet.listen(('127.0.0.1', bdport)),
                 locals={'server': self,
+                        'debug': debug,
                         'exit': safe_exit(),
                         'quit': safe_exit(),
                         'stats': lambda: pprint.pprint(self.stats()),
@@ -178,6 +180,7 @@ def start(config, options):
     #def drop_to_shell(s, f):
         #from IPython.Shell import IPShell
         #s = IPShell([], {'server': server,
+                         #'debug': debug,
                          #'stats': lambda: pprint.pprint(server.stats()),
                         #})
         #s.mainloop()

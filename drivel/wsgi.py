@@ -159,7 +159,7 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
-        #body = str(request.body) if request.method == 'POST' else ''
+        body = str(request.body) if request.method == 'POST' else ''
 
         try:
             timeouttimer = timeout.Timeout(tsecs, TimeoutException())
@@ -182,6 +182,8 @@ def create_application(server):
         start_response('200 OK', headers)
         if 'jsonpcallback' in request.GET:
             msgs = '%s(%s)' % (request.GET['jsonpcallback'], simplejson.dumps(msgs))
+        else:
+            msgs = simplejson.dumps(msgs)
         if isinstance(msgs, basestring):
             return [msgs]
         elif msgs is None:

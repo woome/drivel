@@ -1,6 +1,36 @@
 from datetime import datetime
 from hashlib import sha1
+import hmac
 TOKEN_DATE_FORMAT = "%Y%m%d%H%M%S"
+
+from drivel.auth import UnauthenticatedUser
+from drivel.contrib import username_from_path
+
+def SignedAuthBackend(server):
+    from drivel.contrib.django import MemcacheAuthBackend
+    from drivel.contrib.django import URLAuthBackend
+    mcauth = MemcacheAuthBackend(server)
+    urlauth = URLAuthBackend(server)
+    secret_key = server.config.django.secret_key
+    def doauth(request):
+        username = username_from_path(request.path)
+        if 'woome-sig' in request.headers:
+            sig = request.headers['woome-sig']
+            # get username
+            h = hmac.new(secret_key, request.body, sha1)
+            h.update(username)
+            if h.hexdigest() == sig:
+                return urlauth(request)
+            else:
+                raise UnauthenticatedUser()
+
+        user = mcauth(request)
+        if user.username != username:
+            raise UnauthenticatedUser()
+        return user
+
+    return doauth
+
 
 def xmpp_credentials(server):
     def get_credentials(user):

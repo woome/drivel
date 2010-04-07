@@ -5,6 +5,7 @@ from hashlib import md5
 
 from drivel.auth import User
 from drivel.auth import UnauthenticatedUser
+from drivel.contrib import username_from_path
 
 def decode(session_data, secret_key):
     """Decode django session serialisation from db.
@@ -22,6 +23,17 @@ def decode(session_data, secret_key):
     # just return an empty dictionary (an empty session).
     except:
         return {}
+
+
+def URLAuthBackend(server):
+    def doauth(request):
+        un = username_from_path(request.path)
+        rows = server.send('db',
+            'SELECT id, password FROM auth_user WHERE username = %s', [un]).wait()
+        if rows:
+            return User(rows[0][0], un, rows[0][1])
+        raise UnauthenticatedUser()
+    return doauth
 
 
 def MemcacheAuthBackend(server):

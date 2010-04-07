@@ -40,7 +40,7 @@ def MemcacheAuthBackend(server):
     session_cookie = server.config.http.session_cookie
     secret_key = server.config.django.secret_key # change section to django
     def doauth(request):
-        sessionid = request.cookies.get(session_cookie)
+        sessionid = request.cookies.get(session_cookie).encode('utf8')
         if not sessionid:
             raise UnauthenticatedUser()
         session = server.send('memcache', 'get', sessionid).wait()

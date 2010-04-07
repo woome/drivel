@@ -19,7 +19,7 @@ class PushQueue(WSGIComponent):
     message_pool_size = 10000 
     urlmapping = {
         'listen': r'^/[^/]+/alerts/',
-        'pushmsg': r'/[^/]+/push/(?P<username>[^/]+)/$',
+        'pushmsg': r'/(?P<username>)[^/]+/push/$',
         }
 
     def __init__(self, server, name):

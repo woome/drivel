@@ -1,3 +1,3 @@
-def username_from_path(path):
-    return path.strip('/').split('/')[0]
+def username_from_path(path, part=0):
+    return path.strip('/').split('/')[part]
 

@@ -20,6 +20,7 @@ def SignedAuthBackend(server):
             h = hmac.new(secret_key, request.body, sha1)
             h.update(username)
             if h.hexdigest() == sig:
+                request.environ['woome.signed'] = True
                 return urlauth(request)
             else:
                 raise UnauthenticatedUser()

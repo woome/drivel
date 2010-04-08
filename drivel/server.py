@@ -191,9 +191,43 @@ def start(config, options):
         eventlet.spawn_after(interval, statdumper, server, interval)
     server.start()
 
+
+# Some lifecycle methods for standard unix server stuff
+import daemon
+import os
+
+def lifecycle_cleanup():
+    """Terminate the process nicely."""
+    sys.exit(0)
+
+def lifecycle_start(conf, options):
+    with daemon.DaemonContext() as dctx:
+        # Write the pid
+        with open(conf.server.get(
+                "pidfile", 
+                "/tmp/drivel.pid"
+                ), "w") as pidfile:
+            pidfile.write("%s\n" % os.getpid())
+
+        # Set the signal map
+        dctx.signal_map = {
+            signal.SIGTERM: lifecycle_cleanup,
+            }
+        start(conf, options)
+
+def lifecycle_stop(conf, options):
+    with open(conf.server.get("pidfile", "/tmp/drivel.pid")) as pidfile:
+        pid = pidfile.read()
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except Exception, e:
+            print >>sys.stderr, "couldn't stop %s" % pid
+    
+
 def main():
     from optparse import OptionParser
-    parser = OptionParser()
+    usage = "%prog [options] [start|stop|help]"
+    parser = OptionParser(usage=usage)
     parser.add_option('-c', '--config', dest='config',
         help="configuration file")
     parser.add_option('-s', '--statdump', dest='statdump',
@@ -202,11 +236,29 @@ def main():
     parser.add_option('-n', '--no-http-logs', dest='nohttp',
         action="store_true",
         help="disable logging of http requests from wsgi server")
+    parser.add_option(
+        '-D', 
+        '--no-daemon', 
+        dest='nodaemon',
+        action="store_true",
+        help="disable daemonification if specified in config"
+        )
     options, args = parser.parse_args()
     if not options.config:
         parser.error('please specify a config file')
     conf = config_fromfile(options.config)
-    start(conf, options)
+
+    if "start" in args:
+        if conf.server.daemon and not(options.nodaemon):
+            lifecycle_start(conf, options)
+        else:
+            start(conf, options)
+
+    elif "stop" in args:
+        lifecycle_stop(conf, options)
+
+    elif "help" in args:
+        parser.print_help()
 
 if __name__ == '__main__':
     main()

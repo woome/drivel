@@ -19,7 +19,7 @@ class PushQueue(WSGIComponent):
     message_pool_size = 10000 
     urlmapping = {
         'listen': r'^/[^/]+/alerts/',
-        'pushmsg': r'/(?P<username>)[^/]+/push/$',
+        'pushmsg': r'/(?P<username>[^/]+)/push/$',
         }
 
     def __init__(self, server, name):
@@ -82,6 +82,8 @@ class PushQueue(WSGIComponent):
         return msg
         
     def do_pushmsg(self, user, request, proc, username):
+        if not request.environ.get('woome.signed', False):
+            return None
         if username in self.users:
             self.users[username].put(str(request.body))
         return []

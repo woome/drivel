@@ -1,41 +1,23 @@
 from __future__ import with_statement
 import ConfigParser
 
-# copy of the deprecated named() function from eventlet.api
-def named(name):
-    """Return an object given its name.
-
-    The name uses a module-like syntax, eg::
-
-      os.path.join
-
-    or::
-
-      mulib.mu.Resource
-
-    """
-    toimport = name
+def dotted_import(name):
+    mod, attr = name.split('.'), []
     obj = None
-    import_err_strings = []
-    while toimport:
+    while mod:
         try:
-            obj = __import__(toimport)
-            break
-        except ImportError, err:
-            # print 'Import error on %s: %s' % (toimport, err)  # debugging spam
-            import_err_strings.append(err.__str__())
-            toimport = '.'.join(toimport.split('.')[:-1])
-    if obj is None:
-        raise ImportError('%s could not be imported.  Import errors: %r' % (name, import_err_strings))
-    for seg in name.split('.')[1:]:
-        try:
-            obj = getattr(obj, seg)
-        except AttributeError:
-            dirobj = dir(obj)
-            dirobj.sort()
-            raise AttributeError('attribute %r missing from %r (%r) %r.  Import errors: %r' % (
-                seg, obj, dirobj, name, import_err_strings))
-    return obj
+            obj = __import__('.'.join(mod), {}, {}, [''])
+        except ImportError, e:
+            attr.insert(0, mod.pop())
+        else:
+            for a in attr:
+                try:
+                    obj = getattr(obj, a)
+                except AttributeError, e:
+                    raise AttributeError('could not get attribute %s from %s -> %s (%r)' % (
+                        a, '.'.join(mod), '.'.join(attr), obj))
+            return obj
+    raise ImportError('could not import %s' % name)
 
 
 class Config(dict):
@@ -54,7 +36,7 @@ class Config(dict):
                 self[key] = Config(val) if isinstance(val, dict) else val
             
     def import_(self, key):
-        return named(self[key])
+        return dotted_import(self[key])
 
     def get(self, key, default=None):
         if isinstance(key, tuple):

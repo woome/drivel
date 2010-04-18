@@ -1,3 +1,12 @@
+#!/usr/bin/python
+
+"""
+The drivel server program.
+
+This program contains the drivel server class.  It also contains a
+certain amount of cowpath paving for running a drivel server.
+"""
+
 from __future__ import with_statement
 from collections import defaultdict
 import gc
@@ -14,6 +23,12 @@ from eventlet import event
 from eventlet import hubs
 from eventlet import queue
 from eventlet import wsgi
+
+# Command line cowpath paving
+if __name__ == "__main__":
+    from os.path import abspath
+    from os.path import dirname # also used by findconfig below
+    sys.path = sys.path + [abspath(dirname(dirname(__file__)))]
 
 from drivel.config import fromfile as config_fromfile
 from drivel.utils import debug
@@ -222,7 +237,27 @@ def lifecycle_stop(conf, options):
             os.kill(int(pid), signal.SIGTERM)
         except Exception, e:
             print >>sys.stderr, "couldn't stop %s" % pid
-    
+
+def findconfig():
+    """Try and find a config file.
+    """
+    import socket
+    import os
+    from glob import glob
+    hn = socket.gethostname()
+    def pattern(d):
+        return "%s/*%s*.conf*" % (d, hn)
+    try:
+        # Try in current working directory
+        return glob(pattern(os.getcwd()))[0]
+    except IndexError:
+        try:
+            # Try in parent dir of this file 
+            return glob(pattern(dirname(dirname(__file__))))[0]
+        except IndexError:
+            pass
+        
+    return None
 
 def main():
     from optparse import OptionParser
@@ -244,21 +279,32 @@ def main():
         help="disable daemonification if specified in config"
         )
     options, args = parser.parse_args()
+
+    if "help" in args:
+        parser.print_help()
+        sys.exit(0)
+
     if not options.config:
-        parser.error('please specify a config file')
+        options.config = findconfig()
+        if options.config:
+            print "using %s" % options.config
+        else:
+            parser.error('please specify a config file')
+
     conf = config_fromfile(options.config)
 
     if "start" in args:
-        if conf.server.daemon and not(options.nodaemon):
-            lifecycle_start(conf, options)
-        else:
+        try:
+            if conf.server.daemon and not(options.nodaemon):
+                lifecycle_start(conf, options)
+            else:
+                raise AttributeError("no daemon")
+        except AttributeError:
             start(conf, options)
 
     elif "stop" in args:
         lifecycle_stop(conf, options)
 
-    elif "help" in args:
-        parser.print_help()
 
 if __name__ == '__main__':
     main()

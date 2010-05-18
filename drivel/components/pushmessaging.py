@@ -8,6 +8,7 @@ from eventlet import queue
 from drivel.component import WSGIComponent
 
 REMOVAL_HORIZON = 60 * 5 # 5mins
+YIELD_AFTER = 10
 
 def dothrow(gt, cgt):
     hubs.get_hub().schedule_call_local(0,
@@ -18,9 +19,9 @@ class PushQueue(WSGIComponent):
     subscription = 'push'
     message_pool_size = 10000 
     urlmapping = {
-        'listen': r'^/[^/]+/alerts/',
-        'pushmsg': r'/(?P<username>[^/]+)/push/$',
-        }
+        'listen': r'^/[^/]+/alerts/(?P<secret>[^/]+)?(/(?P<sharedsecret>[^/]+))?$',
+        'pushmsg': r'^/(?P<username>[^/]+)/push/(?P<sharedsecret>[^/]+)?$',
+    }
 
     def __init__(self, server, name):
         super(PushQueue, self).__init__(server, name)
@@ -35,7 +36,6 @@ class PushQueue(WSGIComponent):
         self.lrudict[username] = self.lrudict.get(username, 0) + 1
 
     def remove_users(self):
-        yield_after = 10
         unyielded_count = 0
         while self.lruheap and self.lruheap[0][0] + REMOVAL_HORIZON < time.time():
             addtime, username = self.lruheap.popleft()
@@ -45,7 +45,7 @@ class PushQueue(WSGIComponent):
                 del self.users[username]
                 del self.lrudict[username]
             unyielded_count += 1
-            if unyielded_count >= yield_after:
+            if unyielded_count >= YIELD_AFTER:
                 eventlet.sleep(0)
                 unyielded_count = 0
         self.log('debug', 'remove done at %s. next at %s' % (
@@ -60,19 +60,24 @@ class PushQueue(WSGIComponent):
             self.remove_users()
             eventlet.sleep(interval)
 
-    def _user_offline(self, gt, cgt):
-        dothrow(gt, cgt)
+# TODO is this needed?
+#    def _user_offline(self, gt, cgt):
+#        dothrow(gt, cgt)
 
-    def do_listen(self, user, request, proc):
+    def do_listen(self, user, request, proc, secret='', sharedsecret=''):
         username = user.username
         cgt = greenthread.getcurrent()
         proc() and proc().link(dothrow, cgt)
         self.add_to_lru(username)
         try:
-            q = self.users[username]
+            q = self.users[username]['queue']
+            if self.users[username]['secret'] == secret:
+                self.users[username]['sharedsecret'] = sharedsecret
+            else:
+                return ['access denied']
         except KeyError, e:
             q = queue.Queue()
-            self.users[username] = q
+            self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
         msg = [q.get()]
         try:
             while True:
@@ -81,11 +86,15 @@ class PushQueue(WSGIComponent):
             pass
         return msg
         
-    def do_pushmsg(self, user, request, proc, username):
-        if not request.environ.get('woome.signed', False):
-            return None
+    def do_pushmsg(self, user, request, proc, username, sharedsecret=''):
+        ## TODO how should this be handled generically?
+        #if not request.environ.get('woome.signed', False):
+        #    return None
         if username in self.users:
-            self.users[username].put(str(request.body))
+            if self.users[username]['sharedsecret'] == sharedsecret:
+                self.users[username]['queue'].put(str(request.body))
+            else:
+                return ['access denied']
         return []
 
     def stats(self):

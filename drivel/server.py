@@ -11,6 +11,8 @@ from __future__ import with_statement
 from collections import defaultdict
 import gc
 import logging
+import os
+import mimetypes
 import pprint
 import re
 import signal
@@ -62,6 +64,31 @@ class dummylog(object):
         pass
 
 
+class StaticFileServer(object):
+    """For testing purposes only. Use a real static file server.
+    """
+    def __init__(self, directory_list, wrapped_app):
+        print "serving static files", directory_list
+        self.directory_list = [os.path.realpath(x) for x in directory_list]
+        self.wrapped_app = wrapped_app
+
+    def __call__(self, env, start_response):
+        for directory in self.directory_list:
+            path = os.path.realpath(directory + env['PATH_INFO'])
+            if not path.startswith(directory):
+                start_response("403 Forbidden", [('Content-Type', 'text/plain')])
+                return ['Forbidden']
+            if os.path.isdir(path):
+                path = os.path.join(path, 'index.html')
+            if os.path.exists(path):
+                content_type, encoding = mimetypes.guess_type(path)
+                if content_type is None:
+                    content_type = 'text/plain'
+                start_response("200 OK", [('Content-Type', content_type)])
+                return file(path).read()
+        return self.wrapped_app(env, start_response)
+
+
 class Server(object):
     def __init__(self, config, options):
         self.config = config
@@ -95,6 +122,9 @@ class Server(object):
                         'stats': lambda: pprint.pprint(self.stats()),
                 })
         app = create_application(self)
+        dirs = self.config.server.get('static_directories', None)
+        if dirs is not None:
+            app = StaticFileServer(dirs.split(','), app)
         self.wsgiapp = app
         if start_listeners:
             numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))

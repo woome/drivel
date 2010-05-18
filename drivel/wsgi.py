@@ -10,7 +10,10 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import timeout
-import simplejson
+try:
+    import simplejson
+except ImportError:
+    import json as simplejson
 from webob import Request
 # local imports
 from auth import UnauthenticatedUser
@@ -123,7 +126,7 @@ def create_application(server):
         #proc.link(g)
 
     def access_control(request):
-        origins = server.config['access-control-origins']
+        origins = server.config.get('access-control-origins', {})
         if 'Origin' in request.headers:
             for key, origin in origins.items():
                 if origin == request.headers['Origin']:
@@ -182,14 +185,10 @@ def create_application(server):
         start_response('200 OK', headers)
         if 'jsonpcallback' in request.GET:
             msgs = '%s(%s)' % (request.GET['jsonpcallback'], simplejson.dumps(msgs))
-        else:
+        elif not isinstance(msgs, basestring):
             msgs = simplejson.dumps(msgs)
-        if isinstance(msgs, basestring):
-            return [msgs]
-        elif msgs is None:
-            return ['']
-        else:
-            return ['\n'.join(msgs) if msgs else '']
+
+        return [msgs+'\r\n']
 
     app = error_middleware(application)
     app = linkablecoroutine_middleware(app)

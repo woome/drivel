@@ -1,25 +1,45 @@
+
+import base64
 import collections
 import time
+import hashlib
+import uuid
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import queue
 from drivel.component import WSGIComponent
+from drivel.utils import crypto
+from drivel import wsgi
+
 
 REMOVAL_HORIZON = 60 * 5 # 5mins
 YIELD_AFTER = 10
+
 
 def dothrow(gt, cgt):
     hubs.get_hub().schedule_call_local(0,
         greenthread.getcurrent().switch)
     cgt.throw()
 
+
+def uid():
+    return base64.b64encode(uuid.uuid4().bytes, '-_').rstrip('=')
+
+
 class PushQueue(WSGIComponent):
     subscription = 'push'
     message_pool_size = 10000 
     urlmapping = {
-        'listen': r'^/[^/]+/alerts/(?P<secret>[^/]+)?(/(?P<sharedsecret>[^/]+))?$',
+        'create': r'^/(?P<username>[^/]+)/create$',
+        'delete': r'^/[^/]+/delete/(?P<secret>[^/]+)/(?P<sharedsecret>[^/]+)$',
+        'listen': r'^/(?P<username>[^/]+)/alerts/(?P<secret>[^/]+)?(/(?P<sharedsecret>[^/]+))?$',
         'pushmsg': r'^/(?P<username>[^/]+)/push/(?P<sharedsecret>[^/]+)?$',
     }
 
@@ -29,6 +49,11 @@ class PushQueue(WSGIComponent):
         self.lruheap = collections.deque()
         self.lrudict = {}
         self.prune_greenthread = eventlet.spawn(self._prune_user_thread)
+        try:
+            self.secret = server.config.crypto.secret
+            self.secret = base64.b64decode(self.secret)
+        except AttributeError:
+            self.secret = None
 
     def add_to_lru(self, username):
         t = time.time()
@@ -64,37 +89,71 @@ class PushQueue(WSGIComponent):
 #    def _user_offline(self, gt, cgt):
 #        dothrow(gt, cgt)
 
-    def do_listen(self, user, request, proc, secret='', sharedsecret=''):
+    def do_create(self, user, request, proc, username):
+        secret = uid()
+        sharedsecret = uid()
+        q = queue.Queue()
+        self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
+        mac1 = crypto.b64encode(
+            crypto.generate_mac(self.secret, username + sharedsecret))
+        host = request.environ['HTTP_HOST']
+        push_url = 'http://%(host)s/%(username)s/push/%(sharedsecret)s?mac=%(mac1)s' % locals()
+        mac2 = crypto.b64encode(
+            crypto.generate_mac(self.secret, username + secret + sharedsecret))
+        poll_url = 'http://%(host)s/%(username)s/alerts/%(secret)s/%(sharedsecret)s?mac=%(mac2)s' % locals()
+
+        return json.dumps(dict(push_url=push_url, poll_url=poll_url))
+
+    def do_delete(self, user, request, proc, secret, sharedsecret):
+        if not (self.users[username]['secret'] == secret and self.users[username]['sharedsecret'] == sharedsecret):
+            return "['cannot delete: access denied']"
+        del self.users[username]
+        ## TODO Post back to some URL in chatty so we can remove this user
+        ## from the queue or tell their partner they disconnected
+
+    def do_listen(self, user, request, proc, username='', secret='', sharedsecret=''):
         username = user.username
+        mac = request.GET.get('mac', '')
+        if self.secret and not crypto.authenticate_mac(self.secret, str(username + secret + sharedsecret), crypto.b64decode(mac)):
+            return ['listen: access denied, bad mac']
         cgt = greenthread.getcurrent()
         proc() and proc().link(dothrow, cgt)
-        self.add_to_lru(username)
+        self.add_to_lru(username)            
         try:
             q = self.users[username]['queue']
             if self.users[username]['secret'] == secret:
                 self.users[username]['sharedsecret'] = sharedsecret
             else:
-                return ['access denied']
+                return ['listen: access denied, bad secret']
         except KeyError, e:
+            if self.secret is not None:
+                return ['listen: access denied, bad queue']
             q = queue.Queue()
             self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
-        msg = [q.get()]
+        try:
+            msg = [q.get()]
+        except wsgi.ConnectionClosed:
+            print "connclosed"
+            eventlet.spawn(self.notify_closed, username)
+            raise
         try:
             while True:
                 msg.append(q.get_nowait())
         except queue.Empty, e:
             pass
         return msg
-        
+
     def do_pushmsg(self, user, request, proc, username, sharedsecret=''):
-        ## TODO how should this be handled generically?
-        #if not request.environ.get('woome.signed', False):
-        #    return None
+        mac = request.GET.get('mac', '')
+        if self.secret and not crypto.authenticate_mac(self.secret, str(username + sharedsecret), crypto.b64decode(mac)):
+            return ['push: access denied bad mac']
+        if not sharedsecret and not request.environ.get('woome.signed', False):
+            return ['push: access denied: request not signed']
         if username in self.users:
             if self.users[username]['sharedsecret'] == sharedsecret:
                 self.users[username]['queue'].put(str(request.body))
             else:
-                return ['access denied']
+                return ['push: access denied, bad queue']
         return []
 
     def stats(self):

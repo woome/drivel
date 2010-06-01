@@ -46,6 +46,7 @@ def dothrow(gt, cgt):
         greenthread.getcurrent().switch)
     cgt.throw()
 
+
 def create_application(server):
     from components.session import SessionConflict # circular import
     authbackend = server.config.http.import_('auth_backend')(server)

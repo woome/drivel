@@ -1,6 +1,12 @@
 from functools import partial
 import eventlet
 from eventlet import queue
+from eventlet import greenthread
+
+
+class CancelOperation(Exception):
+    pass
+
 
 class Component(object):
     subscription = None
@@ -37,13 +43,17 @@ class Component(object):
             self._execute(self._handle_message, event, message)
         
     def _handle_message(self, event, message):
+        event.processing_coroutine = greenthread.getcurrent()
         try:
             res = self.handle_message(message)
             self.handled_messages += 1
             event.send(res)
+        except CancelOperation:
+            print "CANCEL OPERATION"
         except Exception, e:
             self.num_errors += 1
             event.send(exc=e)
+        event.processing_coroutine = None
 
     def handle_message(self, message):
         raise NotImplementedError()

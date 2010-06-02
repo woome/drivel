@@ -17,6 +17,7 @@ except ImportError:
 from webob import Request
 # local imports
 from auth import UnauthenticatedUser
+from drivel import component
 
 class TimeoutException(Exception):
     pass
@@ -64,7 +65,7 @@ def create_application(server):
                     ], exc_info=sys.exc_info())
                 return ['Could not be authenticated']
             except PathNotResolved, e:
-                log('debug', 'no registered component for path')
+                log('debug', 'no registered component for path %s' % (environ['PATH_INFO'], ))
                 start_response('404 Not Found', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
@@ -163,25 +164,30 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
-        body = str(request.body) if request.method == 'POST' else ''
+        body = str(request.body) if request.method == 'POST' else request.GET.get('body', '')
 
         try:
             timeouttimer = timeout.Timeout(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
-            msgs = server.send(subs, msg, kw, user, request, proc).wait()
+            evt = server.send(subs, msg, kw, user, request, proc)
+            msgs = evt.wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)
             msgs = []
+            if getattr(evt, 'processing_coroutine', None) is not None:
+                evt.processing_coroutine.kill(component.CancelOperation)
         except ConnectionClosed, e:
             log('debug', 'connection closed for user %s' % user)
             msgs = []
+            if getattr(evt, 'processing_coroutine', None) is not None:
+                evt.processing_coroutine.kill(component.CancelOperation)
         finally:
             timeouttimer.cancel()
         # do response
         log('debug', 'got messages %s for user %s' % (msgs, user))
-        headers = [('Content-type', 'text/html')]
+        headers = [('Content-type', 'application/javascript'), ('Connection', 'close')]
         headers.extend(access_control(request))
         start_response('200 OK', headers)
         if 'jsonpcallback' in request.GET:

@@ -321,7 +321,7 @@ def main():
         else:
             parser.error('please specify a config file')
 
-    sys.path += [dirname(options.config)]
+    sys.path += [os.path.dirname(options.config)]
     conf = config_fromfile(options.config)
 
     if "start" in args:

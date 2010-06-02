@@ -151,7 +151,8 @@ class PushQueue(WSGIComponent):
             return ['push: access denied: request not signed']
         if username in self.users:
             if self.users[username]['sharedsecret'] == sharedsecret:
-                self.users[username]['queue'].put(str(request.body))
+                body = str(request.body) or request.GET.get('body')
+                self.users[username]['queue'].put(body)
             else:
                 return ['push: access denied, bad queue']
         return []

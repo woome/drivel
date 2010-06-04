@@ -182,7 +182,7 @@ def create_application(server):
             log('debug', 'connection closed for user %s' % user)
             msgs = []
             if getattr(evt, 'processing_coroutine', None) is not None:
-                evt.processing_coroutine.kill(component.CancelOperation)
+                evt.processing_coroutine.kill(component.CancelOperation())
         finally:
             timeouttimer.cancel()
         # do response

@@ -48,8 +48,6 @@ class Component(object):
             res = self.handle_message(message)
             self.handled_messages += 1
             event.send(res)
-        except CancelOperation:
-            print "CANCEL OPERATION"
         except Exception, e:
             self.num_errors += 1
             event.send(exc=e)

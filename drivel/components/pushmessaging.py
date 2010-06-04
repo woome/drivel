@@ -13,11 +13,13 @@ except ImportError:
 import eventlet
 from eventlet import greenthread
 from eventlet import hubs
+from eventlet import patcher
 from eventlet import queue
-from drivel.component import WSGIComponent
+from drivel.component import CancelOperation, WSGIComponent
 from drivel.utils import crypto
 from drivel import wsgi
 
+httplib2 = patcher.import_patched('httplib2')
 
 REMOVAL_HORIZON = 60 * 5 # 5mins
 YIELD_AFTER = 10
@@ -67,6 +69,7 @@ class PushQueue(WSGIComponent):
             self.log('debug', 'removing user %s' % username)
             self.lrudict[username] -= 1
             if self.lrudict[username] == 0:
+                self.notify_closed(username)
                 del self.users[username]
                 del self.lrudict[username]
             unyielded_count += 1
@@ -89,11 +92,24 @@ class PushQueue(WSGIComponent):
 #    def _user_offline(self, gt, cgt):
 #        dothrow(gt, cgt)
 
+    def notify_closed(self, username):
+        """The client dropped the connection or timed out. Invoke callback.
+        """
+        if 'delete_callback' in self.users[username]:
+            httplib2.Http().request(self.users[username]['delete_callback'], 'POST')
+
     def do_create(self, user, request, proc, username):
+        body = request.body
+        delete_callback = json.loads(request.body)['delete_callback']
         secret = uid()
         sharedsecret = uid()
         q = queue.Queue()
-        self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
+        self.users[username] = {
+            'queue': q,
+            'secret': secret,
+            'sharedsecret': sharedsecret,
+            'delete_callback': delete_callback
+        }
         mac1 = crypto.b64encode(
             crypto.generate_mac(self.secret, username + sharedsecret))
         host = request.environ['HTTP_HOST']
@@ -132,8 +148,7 @@ class PushQueue(WSGIComponent):
             self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
         try:
             msg = [q.get()]
-        except wsgi.ConnectionClosed:
-            print "connclosed"
+        except CancelOperation:
             eventlet.spawn(self.notify_closed, username)
             raise
         try:

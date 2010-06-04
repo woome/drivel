@@ -134,7 +134,8 @@ class PushQueue(WSGIComponent):
     def do_listen(self, user, request, proc, username='', secret='', sharedsecret=''):
         username = user.username
         mac = request.GET.get('mac', '')
-        if self.secret and not crypto.authenticate_mac(self.secret, str(username + secret + sharedsecret), crypto.b64decode(mac)):
+        delete_callback = request.GET.get('delete_callback', '')
+        if self.secret and not crypto.authenticate_mac(self.secret, str(username + secret + sharedsecret + delete_callback), crypto.b64decode(mac)):
             return ['listen: access denied, bad mac']
         cgt = greenthread.getcurrent()
         proc() and proc().link(dothrow, cgt)
@@ -150,11 +151,13 @@ class PushQueue(WSGIComponent):
                 return ['listen: access denied, bad queue']
             q = queue.Queue()
             self.users[username] = {'queue': q, 'secret': secret, 'sharedsecret': sharedsecret}
+        if delete_callback is not None:
+            self.users[username]['delete_callback'] = crypto.b64decode(delete_callback)
         try:
             msg = [q.get()]
         except CancelOperation:
-            eventlet.spawn(self.notify_closed, username)
-            raise
+            self.notify_closed(username)
+            return []
         try:
             while True:
                 msg.append(q.get_nowait())

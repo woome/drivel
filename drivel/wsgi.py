@@ -171,18 +171,13 @@ def create_application(server):
             if rfile:
                 watchconnection(rfile, proc)
             subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
-            evt = server.send(subs, msg, kw, user, request, proc)
-            msgs = evt.wait()
+            msgs = server.send(subs, msg, kw, user, request, proc).wait()
         except TimeoutException, e:
             log('debug', 'timeout reached for user %s' % user)
             msgs = []
-            if getattr(evt, 'processing_coroutine', None) is not None:
-                evt.processing_coroutine.kill(component.CancelOperation)
         except ConnectionClosed, e:
             log('debug', 'connection closed for user %s' % user)
             msgs = []
-            if getattr(evt, 'processing_coroutine', None) is not None:
-                evt.processing_coroutine.kill(component.CancelOperation())
         finally:
             timeouttimer.cancel()
         # do response

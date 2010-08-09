@@ -10,6 +10,7 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import timeout
+from eventlet.green import time
 try:
     import simplejson
 except ImportError:
@@ -167,13 +168,15 @@ def create_application(server):
         body = str(request.body) if request.method == 'POST' else request.GET.get('body', '')
 
         try:
+            timeoutstarttime = time.time()
             timeouttimer = timeout.Timeout(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
             msgs = server.send(subs, msg, kw, user, request, proc).wait()
         except TimeoutException, e:
-            log('debug', 'timeout reached for user %s' % user)
+            log('debug', 'timeout reached for user %s after %ds' % (user,
+                (time.time() - timeoutstarttime)))
             msgs = []
         except ConnectionClosed, e:
             log('debug', 'connection closed for user %s' % user)

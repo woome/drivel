@@ -32,6 +32,7 @@ if __name__ == "__main__":
     from os.path import dirname # also used by findconfig below
     sys.path = sys.path + [abspath(dirname(dirname(__file__)))]
 
+import drivel.logstuff 
 from drivel.config import fromfile as config_fromfile
 from drivel.utils import debug
 from drivel.wsgi import create_application
@@ -67,8 +68,9 @@ class dummylog(object):
 class StaticFileServer(object):
     """For testing purposes only. Use a real static file server.
     """
-    def __init__(self, directory_list, wrapped_app):
-        print "serving static files", directory_list
+    def __init__(self, directory_list, wrapped_app, host):
+        self.host = host
+        self.host.log("httpd", "info", "serving static files: %s" % directory_list)
         self.directory_list = [os.path.realpath(x) for x in directory_list]
         self.wrapped_app = wrapped_app
 
@@ -124,7 +126,7 @@ class Server(object):
         app = create_application(self)
         dirs = self.config.server.get('static_directories', None)
         if dirs is not None:
-            app = StaticFileServer(dirs.split(','), app)
+            app = StaticFileServer(dirs.split(','), app, self)
         self.wsgiapp = app
         if start_listeners:
             numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))
@@ -184,7 +186,23 @@ class Server(object):
     def _setupLogging(self):
         level = getattr(logging,
             self.config.server.log_level.upper())
-        logging.basicConfig(level=level, stream=sys.stdout)
+        lh_name = self.config.server.get(
+            "log_handler", 
+            "drivel.logstuff.StreamLoggingHandler"
+            )
+        lh_class = eval(lh_name)
+        lh = lh_class()
+        lh.setFormatter(logging.Formatter(
+                self.config.server.get(
+                    "log_format", 
+                    "%(name)s:%(levelname)s:%(lineno)d:%(message)s"
+                    )
+                ))
+        root_logger = logging.getLogger("")
+        root_logger.handlers = []
+        root_logger.addHandler(lh)
+        root_logger.setLevel(level)
+        #logging.basicConfig(level=level, stream=sys.stdout)
 
     def stats(self, gc_collect=False):
         stats = dict((key, comp.stats()) for key, comp

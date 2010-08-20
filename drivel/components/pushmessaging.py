@@ -30,9 +30,13 @@ class CancelOperation(Exception):
 
 
 def dothrow(gt, cgt):
-    hubs.get_hub().schedule_call_local(0,
-        greenthread.getcurrent().switch)
-    cgt.throw(CancelOperation())
+    #print 'throwing cancel from:%s to:%s current:%s' % (gt, cgt, greenthread.getcurrent())
+    if isinstance(cgt, greenthread.GreenThread):
+        cgt.kill(CancelOperation, None, None)
+    else:
+        hubs.get_hub().schedule_call_local(0,
+            greenthread.getcurrent().switch)
+        cgt.throw(CancelOperation())
 
 
 def uid():

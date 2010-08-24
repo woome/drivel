@@ -176,11 +176,12 @@ class PushQueue(WSGIComponent):
         if not sharedsecret and not request.environ.get('woome.signed', False):
             return ['push: access denied: request not signed']
         if username in self.users:
+            body = str(request.body) or request.GET.get('body')
             if self.users[username]['sharedsecret'] == sharedsecret:
-                body = str(request.body) or request.GET.get('body')
                 self.users[username]['queue'].put(body)
             else:
-                return ['push: access denied, bad queue']
+                self.log('warning', 'shared secret %s does not match %s for user %s' % (sharedsecret, self.users[username]['sharedsecret'], username))
+                return ['push: access denied, bad queue', body]
         return []
 
     def stats(self):

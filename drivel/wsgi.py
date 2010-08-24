@@ -72,8 +72,8 @@ def create_application(server):
                     ], exc_info=sys.exc_info())
                 return ['404 Not Found']
             except Exception, e:
-                log('error', 'an unexpected exception was raised')
-                log('error', traceback.format_exc())
+                log('error', 'an unexpected exception was raised: %s' % e)
+                #log('error', 'traceback: %s' % traceback.format_exc())
                 start_response('500 Internal Server Error', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())

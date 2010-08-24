@@ -126,11 +126,11 @@ class PushQueue(WSGIComponent):
             crypto.generate_mac(self.secret, username + secret + sharedsecret))
         poll_url = 'http://%(host)s/%(username)s/alerts/%(secret)s/%(sharedsecret)s?mac=%(mac2)s' % locals()
 
-        return json.dumps(dict(push_url=push_url, poll_url=poll_url))
+        return dict(push_url=push_url, poll_url=poll_url)
 
     def do_delete(self, user, request, proc, secret, sharedsecret):
         if not (self.users[username]['secret'] == secret and self.users[username]['sharedsecret'] == sharedsecret):
-            return "['cannot delete: access denied']"
+            return ['cannot delete: access denied']
         del self.users[username]
         ## TODO Post back to some URL in chatty so we can remove this user
         ## from the queue or tell their partner they disconnected

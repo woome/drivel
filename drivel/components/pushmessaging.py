@@ -29,16 +29,6 @@ class CancelOperation(Exception):
     pass
 
 
-def dothrow(gt, cgt):
-    #print 'throwing cancel from:%s to:%s current:%s' % (gt, cgt, greenthread.getcurrent())
-    if isinstance(cgt, greenthread.GreenThread):
-        cgt.kill(CancelOperation, None, None)
-    else:
-        hubs.get_hub().schedule_call_local(0,
-            greenthread.getcurrent().switch)
-        cgt.throw(CancelOperation())
-
-
 def uid():
     return base64.b64encode(uuid.uuid4().bytes, '-_').rstrip('=')
 
@@ -142,7 +132,7 @@ class PushQueue(WSGIComponent):
         if self.secret and not crypto.authenticate_mac(self.secret, str(username + secret + sharedsecret + delete_callback), crypto.b64decode(mac)):
             return ['listen: access denied, bad mac']
         cgt = greenthread.getcurrent()
-        proc() and proc().link(dothrow, cgt)
+        proc() and proc().link(self._dothrow, cgt)
         self.add_to_lru(username)            
         try:
             q = self.users[username]['queue']

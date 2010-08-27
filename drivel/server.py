@@ -236,8 +236,8 @@ class Server(object):
 def start(config, options):
     if 'hub_module' in config.server:
         hubs.use_hub(config.server.import_('hub_module'))
-    from eventlet import patcher
-    patcher.monkey_patch(all=False, socket=True, select=True, os=True)
+    #from eventlet import patcher
+    #patcher.monkey_patch(all=False, socket=True, select=True, os=True)
     server = Server(config, options)
 
     #def drop_to_shell(s, f):

@@ -15,6 +15,7 @@ from eventlet import greenthread
 from eventlet import hubs
 from eventlet import patcher
 from eventlet import queue
+from drivel.component import CancelOperation
 from drivel.component import WSGIComponent
 from drivel.utils import crypto
 from drivel import wsgi
@@ -23,10 +24,6 @@ httplib2 = patcher.import_patched('httplib2')
 
 REMOVAL_HORIZON = 60 * 5 # 5mins
 YIELD_AFTER = 10
-
-
-class CancelOperation(Exception):
-    pass
 
 
 def uid():

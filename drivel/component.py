@@ -4,6 +4,10 @@ from eventlet import queue
 from eventlet import greenthread
 
 
+class CancelOperation(Exception):
+    pass
+
+
 class Component(object):
     subscription = None
     asynchronous = True # spawn a coroutine for each message

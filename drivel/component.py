@@ -1,4 +1,4 @@
-from functools import partial
+rom functools import partial
 import eventlet
 from eventlet import queue
 from eventlet import greenthread
@@ -31,7 +31,7 @@ class Component(object):
             self._coropool = eventlet.GreenPool(size=1)
             self._execute = lambda func, *args: self._coropool.spawn(func, *args).wait()
         self.log = partial(self.server.log, self.__class__.__name__)
-            
+
     @property
     def config(self):
         return self.server.config
@@ -41,7 +41,7 @@ class Component(object):
             event, message = self._mqueue.get()
             self.received_messages += 1
             self._execute(self._handle_message, event, message)
-        
+
     def _handle_message(self, event, message):
         try:
             res = self.handle_message(message)

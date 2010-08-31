@@ -134,6 +134,9 @@ class PushQueue(WSGIComponent):
         try:
             q = self.users[username]['queue']
             if self.users[username]['secret'] == secret:
+                if sharedsecret != self.users[username]['sharedsecret']:
+                    self.log('info', 'changing shared secret for: %s from: %s to: %s' % (username, self.users[username]['sharedsecret'], sharedsecret))
+                    self.log('info', 'changing request is %r, %r' % (request.headers['user-agent'], request.headers['x-requested-with']))
                 self.users[username]['sharedsecret'] = sharedsecret
             else:
                 return ['listen: access denied, bad secret']

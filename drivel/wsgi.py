@@ -165,6 +165,7 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
+        log('info', 'path: %s from: %s' % (request.path, request.headers['user-agent']))
         body = str(request.body) if request.method == 'POST' else request.GET.get('body', '')
 
         try:

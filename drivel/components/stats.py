@@ -23,6 +23,7 @@ def dpath(dict_, path):
 
 
 class StatsComponent(WSGIComponent):
+    subscription = "stats"
     urlmapping = {
         'stats': r'/stats(?P<path>/.+)?/$',
     }

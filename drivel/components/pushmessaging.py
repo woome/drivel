@@ -5,14 +5,11 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import queue
+from drivel.component import CancelOperation
 from drivel.component import WSGIComponent
 
 REMOVAL_HORIZON = 60 * 5 # 5mins
-
-def dothrow(gt, cgt):
-    hubs.get_hub().schedule_call_local(0,
-        greenthread.getcurrent().switch)
-    cgt.throw()
+YIELD_AFTER = 10
 
 class PushQueue(WSGIComponent):
     subscription = 'push'
@@ -35,7 +32,6 @@ class PushQueue(WSGIComponent):
         self.lrudict[username] = self.lrudict.get(username, 0) + 1
 
     def remove_users(self):
-        yield_after = 10
         unyielded_count = 0
         while self.lruheap and self.lruheap[0][0] + REMOVAL_HORIZON < time.time():
             addtime, username = self.lruheap.popleft()
@@ -45,7 +41,7 @@ class PushQueue(WSGIComponent):
                 del self.users[username]
                 del self.lrudict[username]
             unyielded_count += 1
-            if unyielded_count >= yield_after:
+            if unyielded_count >= YIELD_AFTER:
                 eventlet.sleep(0)
                 unyielded_count = 0
         self.log('debug', 'remove done at %s. next at %s' % (
@@ -60,20 +56,20 @@ class PushQueue(WSGIComponent):
             self.remove_users()
             eventlet.sleep(interval)
 
-    def _user_offline(self, gt, cgt):
-        dothrow(gt, cgt)
-
     def do_listen(self, user, request, proc):
         username = user.username
         cgt = greenthread.getcurrent()
-        proc() and proc().link(dothrow, cgt)
+        proc() and proc().link(self._dothrow, cgt)
         self.add_to_lru(username)
         try:
             q = self.users[username]
         except KeyError, e:
             q = queue.Queue()
             self.users[username] = q
-        msg = [q.get()]
+        try:
+            msg = [q.get()]
+        except CancelOperation, e:
+            return []
         try:
             while True:
                 msg.append(q.get_nowait())

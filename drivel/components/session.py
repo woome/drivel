@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections import deque
 import uuid
 # third-party imports
-from eventlet import api
+import eventlet
 # local imports
 from drivel.component import Component
 from drivel.wsgi import ConnectionReplaced
@@ -53,7 +53,7 @@ class SessionManager(Component):
     def set_inactivity_timer(self, user):
         self.log('debug', 'setting inactivity timer for %s' % user)
         self.cancel_inactivity_timer(user)
-        self.user_timers[user] = api.call_after(self._inactivity_disconnect,
+        self.user_timers[user] = eventlet.spawn_after(self._inactivity_disconnect,
             self._inactivity_alarm, user)
 
     def remove_connection(self, sessid, conn):

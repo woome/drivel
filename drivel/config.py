@@ -34,7 +34,7 @@ class Config(dict):
         else:
             for key, val in config.iteritems():
                 self[key] = Config(val) if isinstance(val, dict) else val
-            
+
     def import_(self, key):
         return dotted_import(self[key])
 

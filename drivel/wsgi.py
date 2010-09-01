@@ -10,10 +10,15 @@ import eventlet
 from eventlet import greenthread
 from eventlet import hubs
 from eventlet import timeout
-import simplejson
+from eventlet.green import time
+try:
+    import simplejson
+except ImportError:
+    import json as simplejson
 from webob import Request
 # local imports
 from auth import UnauthenticatedUser
+from drivel import component
 
 class TimeoutException(Exception):
     pass
@@ -43,6 +48,7 @@ def dothrow(gt, cgt):
         greenthread.getcurrent().switch)
     cgt.throw()
 
+
 def create_application(server):
     from components.session import SessionConflict # circular import
     authbackend = server.config.http.import_('auth_backend')(server)
@@ -60,14 +66,14 @@ def create_application(server):
                     ], exc_info=sys.exc_info())
                 return ['Could not be authenticated']
             except PathNotResolved, e:
-                log('debug', 'no registered component for path')
+                log('debug', 'no registered component for path %s' % (environ['PATH_INFO'], ))
                 start_response('404 Not Found', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
                 return ['404 Not Found']
             except Exception, e:
-                log('error', 'an unexpected exception was raised')
-                log('error', traceback.format_exc())
+                log('error', 'an unexpected exception was raised: %s' % e)
+                #log('error', 'traceback: %s' % traceback.format_exc())
                 start_response('500 Internal Server Error', [
                         ('Content-type', 'text/html'),
                     ], exc_info=sys.exc_info())
@@ -123,7 +129,7 @@ def create_application(server):
         #proc.link(g)
 
     def access_control(request):
-        origins = server.config['access-control-origins']
+        origins = server.config.get('access-control-origins', {})
         if 'Origin' in request.headers:
             for key, origin in origins.items():
                 if origin == request.headers['Origin']:
@@ -159,16 +165,19 @@ def create_application(server):
             return ['']
         user = authbackend(request)
         path = request.path.strip('/').split('/')
-        body = str(request.body) if request.method == 'POST' else ''
+        log('info', 'path: %s from: %s' % (request.path, request.headers['user-agent']))
+        body = str(request.body) if request.method == 'POST' else request.GET.get('body', '')
 
         try:
+            timeoutstarttime = time.time()
             timeouttimer = timeout.Timeout(tsecs, TimeoutException())
             if rfile:
                 watchconnection(rfile, proc)
             subs, msg, kw = _path_to_subscriber(server.wsgiroutes, request.path)
             msgs = server.send(subs, msg, kw, user, request, proc).wait()
         except TimeoutException, e:
-            log('debug', 'timeout reached for user %s' % user)
+            log('debug', 'timeout reached for user %s after %ds' % (user,
+                (time.time() - timeoutstarttime)))
             msgs = []
         except ConnectionClosed, e:
             log('debug', 'connection closed for user %s' % user)
@@ -177,19 +186,15 @@ def create_application(server):
             timeouttimer.cancel()
         # do response
         log('debug', 'got messages %s for user %s' % (msgs, user))
-        headers = [('Content-type', 'text/html')]
+        headers = [('Content-type', 'application/javascript'), ('Connection', 'close')]
         headers.extend(access_control(request))
         start_response('200 OK', headers)
         if 'jsonpcallback' in request.GET:
             msgs = '%s(%s)' % (request.GET['jsonpcallback'], simplejson.dumps(msgs))
-        else:
+        elif not isinstance(msgs, basestring):
             msgs = simplejson.dumps(msgs)
-        if isinstance(msgs, basestring):
-            return [msgs]
-        elif msgs is None:
-            return ['']
-        else:
-            return ['\n'.join(msgs) if msgs else '']
+
+        return [msgs+'\r\n']
 
     app = error_middleware(application)
     app = linkablecoroutine_middleware(app)

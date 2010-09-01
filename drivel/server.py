@@ -11,6 +11,8 @@ from __future__ import with_statement
 from collections import defaultdict
 import gc
 import logging
+import os
+import mimetypes
 import pprint
 import re
 import signal
@@ -30,6 +32,7 @@ if __name__ == "__main__":
     from os.path import dirname # also used by findconfig below
     sys.path = sys.path + [abspath(dirname(dirname(__file__)))]
 
+import drivel.logstuff 
 from drivel.config import fromfile as config_fromfile
 from drivel.utils import debug
 from drivel.wsgi import create_application
@@ -60,6 +63,32 @@ class safe_exit(object):
 class dummylog(object):
     def write(self, data):
         pass
+
+
+class StaticFileServer(object):
+    """For testing purposes only. Use a real static file server.
+    """
+    def __init__(self, directory_list, wrapped_app, host):
+        self.host = host
+        self.host.log("httpd", "info", "serving static files: %s" % directory_list)
+        self.directory_list = [os.path.realpath(x) for x in directory_list]
+        self.wrapped_app = wrapped_app
+
+    def __call__(self, env, start_response):
+        for directory in self.directory_list:
+            path = os.path.realpath(directory + env['PATH_INFO'])
+            if not path.startswith(directory):
+                start_response("403 Forbidden", [('Content-Type', 'text/plain')])
+                return ['Forbidden']
+            if os.path.isdir(path):
+                path = os.path.join(path, 'index.html')
+            if os.path.exists(path):
+                content_type, encoding = mimetypes.guess_type(path)
+                if content_type is None:
+                    content_type = 'text/plain'
+                start_response("200 OK", [('Content-Type', content_type)])
+                return file(path).read()
+        return self.wrapped_app(env, start_response)
 
 
 class Server(object):
@@ -95,6 +124,9 @@ class Server(object):
                         'stats': lambda: pprint.pprint(self.stats()),
                 })
         app = create_application(self)
+        dirs = self.config.server.get('static_directories', None)
+        if dirs is not None:
+            app = StaticFileServer(dirs.split(','), app, self)
         self.wsgiapp = app
         if start_listeners:
             numsimulreq = self.config.get(('http', 'max_simultaneous_reqs'))
@@ -154,7 +186,23 @@ class Server(object):
     def _setupLogging(self):
         level = getattr(logging,
             self.config.server.log_level.upper())
-        logging.basicConfig(level=level, stream=sys.stdout)
+        lh_name = self.config.server.get(
+            "log_handler", 
+            "drivel.logstuff.StreamLoggingHandler"
+            )
+        lh_class = eval(lh_name)
+        lh = lh_class()
+        lh.setFormatter(logging.Formatter(
+                self.config.server.get(
+                    "log_format", 
+                    "%(name)s:%(levelname)s:%(lineno)d:%(message)s"
+                    )
+                ))
+        root_logger = logging.getLogger("")
+        root_logger.handlers = []
+        root_logger.addHandler(lh)
+        root_logger.setLevel(level)
+        #logging.basicConfig(level=level, stream=sys.stdout)
 
     def stats(self, gc_collect=False):
         stats = dict((key, comp.stats()) for key, comp
@@ -188,8 +236,8 @@ class Server(object):
 def start(config, options):
     if 'hub_module' in config.server:
         hubs.use_hub(config.server.import_('hub_module'))
-    from eventlet import patcher
-    patcher.monkey_patch(all=False, socket=True, select=True, os=True)
+    #from eventlet import patcher
+    #patcher.monkey_patch(all=False, socket=True, select=True, os=True)
     server = Server(config, options)
 
     #def drop_to_shell(s, f):
@@ -291,6 +339,7 @@ def main():
         else:
             parser.error('please specify a config file')
 
+    sys.path += [os.path.dirname(options.config)]
     conf = config_fromfile(options.config)
 
     if "start" in args:

@@ -1,4 +1,4 @@
-rom functools import partial
+from functools import partial
 import eventlet
 from eventlet import queue
 from eventlet import greenthread

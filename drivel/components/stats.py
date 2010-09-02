@@ -36,7 +36,7 @@ class StatsComponent(WSGIComponent):
         if path:
             try:
                 stats = dpath(stats, path)
-            except KeyError, e:
+            except PathError, e:
                 # should 404
                 return {'error': 'path not found'}
         return stats

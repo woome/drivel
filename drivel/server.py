@@ -29,18 +29,20 @@ from eventlet import wsgi
 # Command line cowpath paving
 if __name__ == "__main__":
     from os.path import abspath
-    from os.path import dirname # also used by findconfig below
+    from os.path import dirname  # also used by findconfig below
     sys.path = sys.path + [abspath(dirname(dirname(__file__)))]
 
-import drivel.logstuff 
+import drivel.logstuff
 from drivel.config import fromfile as config_fromfile
 from drivel.utils import debug
 from drivel.wsgi import create_application
+
 
 def statdumper(server, interval):
     while True:
         pprint.pprint(server.stats())
         eventlet.sleep(interval)
+
 
 def timed_switch_out(self):
     self._last_switch_out = time.time()
@@ -48,8 +50,10 @@ def timed_switch_out(self):
 from eventlet.greenthread import GreenThread
 GreenThread.switch_out = timed_switch_out
 
+
 class safe_exit(object):
     exit_advice = 'exit from telnet is ^]'
+
     def __call__(self):
         print self.exit_advice
 
@@ -70,7 +74,8 @@ class StaticFileServer(object):
     """
     def __init__(self, directory_list, wrapped_app, host):
         self.host = host
-        self.host.log("httpd", "info", "serving static files: %s" % directory_list)
+        self.host.log("httpd", "info", "serving static files: %s" %
+            directory_list)
         self.directory_list = [os.path.realpath(x) for x in directory_list]
         self.wrapped_app = wrapped_app
 
@@ -78,7 +83,8 @@ class StaticFileServer(object):
         for directory in self.directory_list:
             path = os.path.realpath(directory + env['PATH_INFO'])
             if not path.startswith(directory):
-                start_response("403 Forbidden", [('Content-Type', 'text/plain')])
+                start_response("403 Forbidden",
+                    [('Content-Type', 'text/plain')])
                 return ['Forbidden']
             if os.path.isdir(path):
                 path = os.path.join(path, 'index.html')
@@ -108,7 +114,8 @@ class Server(object):
     def start(self, start_listeners=True):
         self.log('Server', 'info', 'starting server')
         for name in self.config.components:
-            self.components[name] = self.config.components.import_(name)(self, name)
+            self.components[name] = self.config.components.import_(name)(self,
+                name)
         self._greenlet = eventlet.spawn(self._process)
         if start_listeners and 'backdoor_port' in self.config.server:
             # enable backdoor console
@@ -187,17 +194,14 @@ class Server(object):
         level = getattr(logging,
             self.config.server.log_level.upper())
         lh_name = self.config.server.get(
-            "log_handler", 
-            "drivel.logstuff.StreamLoggingHandler"
-            )
+            "log_handler",
+            "drivel.logstuff.StreamLoggingHandler")
         lh_class = eval(lh_name)
         lh = lh_class()
         lh.setFormatter(logging.Formatter(
                 self.config.server.get(
-                    "log_format", 
-                    "%(name)s:%(levelname)s:%(lineno)d:%(message)s"
-                    )
-                ))
+                    "log_format",
+                    "%(name)s:%(levelname)s:%(lineno)d:%(message)s")))
         root_logger = logging.getLogger("")
         root_logger.handlers = []
         root_logger.addHandler(lh)
@@ -208,7 +212,7 @@ class Server(object):
         stats = dict((key, comp.stats()) for key, comp
             in self.components.items())
         hub = hubs.get_hub()
-        gettypes = lambda t: [o for o in gc.get_objects() if 
+        gettypes = lambda t: [o for o in gc.get_objects() if
             type(o).__name__ == t]
         if gc_collect:
             gc.collect() and gc.collect()
@@ -259,17 +263,18 @@ def start(config, options):
 import daemon
 import os
 
+
 def lifecycle_cleanup():
     """Terminate the process nicely."""
     sys.exit(0)
+
 
 def lifecycle_start(conf, options):
     with daemon.DaemonContext() as dctx:
         # Write the pid
         with open(conf.server.get(
-                "pidfile", 
-                "/tmp/drivel.pid"
-                ), "w") as pidfile:
+                "pidfile",
+                "/tmp/drivel.pid"), "w") as pidfile:
             pidfile.write("%s\n" % os.getpid())
 
         # Set the signal map
@@ -278,13 +283,15 @@ def lifecycle_start(conf, options):
             }
         start(conf, options)
 
+
 def lifecycle_stop(conf, options):
     with open(conf.server.get("pidfile", "/tmp/drivel.pid")) as pidfile:
         pid = pidfile.read()
         try:
             os.kill(int(pid), signal.SIGTERM)
         except Exception, e:
-            print >>sys.stderr, "couldn't stop %s" % pid
+            print >> sys.stderr, "couldn't stop %s" % pid
+
 
 def findconfig():
     """Try and find a config file.
@@ -293,6 +300,7 @@ def findconfig():
     import os
     from glob import glob
     hn = socket.gethostname()
+
     def pattern(d):
         return "%s/*%s*.conf*" % (d, hn)
     try:
@@ -300,12 +308,13 @@ def findconfig():
         return glob(pattern(os.getcwd()))[0]
     except IndexError:
         try:
-            # Try in parent dir of this file 
+            # Try in parent dir of this file
             return glob(pattern(dirname(dirname(__file__))))[0]
         except IndexError:
             pass
-        
+
     return None
+
 
 def main():
     from optparse import OptionParser
@@ -320,12 +329,11 @@ def main():
         action="store_true",
         help="disable logging of http requests from wsgi server")
     parser.add_option(
-        '-D', 
-        '--no-daemon', 
+        '-D',
+        '--no-daemon',
         dest='nodaemon',
         action="store_true",
-        help="disable daemonification if specified in config"
-        )
+        help="disable daemonification if specified in config")
     options, args = parser.parse_args()
 
     if "help" in args:
@@ -357,4 +365,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

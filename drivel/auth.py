@@ -23,4 +23,3 @@ class User(object):
 
 class UnauthenticatedUser(Exception):
     pass
-

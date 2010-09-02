@@ -1,6 +1,7 @@
 from __future__ import with_statement
 import ConfigParser
 
+
 def dotted_import(name):
     mod, attr = name.split('.'), []
     obj = None
@@ -14,8 +15,9 @@ def dotted_import(name):
                 try:
                     obj = getattr(obj, a)
                 except AttributeError, e:
-                    raise AttributeError('could not get attribute %s from %s -> %s (%r)' % (
-                        a, '.'.join(mod), '.'.join(attr), obj))
+                    raise AttributeError('could not get attribute %s from %s'
+                        ' -> %s (%r)' % (a, '.'.join(mod), '.'.join(attr),
+                        obj))
             return obj
     raise ImportError('could not import %s' % name)
 
@@ -111,4 +113,3 @@ def fromfile(file):
     return Config(config)
 
 # END
-
